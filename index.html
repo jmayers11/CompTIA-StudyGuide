@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CyberSec Notes</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CyberSec Notes">
+<meta name="theme-color" content="#0f1420">
+<meta name="mobile-web-app-capable" content="yes">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -276,7 +281,7 @@
   /* Real 3D flip card for the Flashcards tab: front and back are stacked
      faces of a rotating inner element, so flipping feels like a physical card. */
   .fc-flip-scene{
-    min-height:160px;
+    min-height:220px;
     perspective:1400px;
     cursor:pointer;
     touch-action:manipulation;
@@ -284,7 +289,7 @@
   .fc-flip-inner{
     position:relative;
     width:100%;
-    height:160px;
+    height:220px;
     transition:transform 0.5s cubic-bezier(0.4,0.2,0.2,1);
     transform-style:preserve-3d;
   }
@@ -299,25 +304,79 @@
     background:var(--panel);
     border:1px solid var(--border);
     border-radius:12px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
+    scrollbar-width:thin;
+    scrollbar-color:var(--accent) transparent;
+  }
+  /* Centering is done via margin:auto on this inner wrapper rather than
+     align-items:center on the scrolling parent — align-items:center on an
+     overflow:auto container is a known cross-browser bug (esp. iOS Safari)
+     where you can't scroll to see content above the centered midpoint,
+     which is what was causing longer flashcard notes to appear cut off. */
+  .fc-flip-face-text{
+    margin:auto;
+    width:100%;
     text-align:center;
     padding:28px 26px;
     font-size:19px;
     font-weight:700;
-    overflow-y:auto;
+  }
+  .fc-flip-face::-webkit-scrollbar{
+    width:6px;
+  }
+  .fc-flip-face::-webkit-scrollbar-thumb{
+    background:var(--border);
+    border-radius:6px;
+  }
+  .fc-flip-face.has-overflow::after{
+    content:'';
+    position:absolute;
+    left:0; right:0; bottom:0;
+    height:34px;
+    background:linear-gradient(to bottom, transparent, var(--panel));
+    pointer-events:none;
+    border-radius:0 0 12px 12px;
+  }
+  .fc-scroll-hint{
+    position:absolute;
+    left:50%;
+    bottom:6px;
+    transform:translateX(-50%);
+    font-size:11px;
+    font-weight:600;
+    color:var(--muted);
+    background:var(--panel2);
+    border:1px solid var(--border);
+    border-radius:20px;
+    padding:2px 10px;
+    display:none;
+    align-items:center;
+    gap:4px;
+    z-index:2;
+    pointer-events:none;
+    animation:fcScrollHintBob 1.6s ease-in-out infinite;
+  }
+  .fc-flip-face.has-overflow .fc-scroll-hint{
+    display:flex;
+  }
+  @keyframes fcScrollHintBob{
+    0%,100%{ transform:translateX(-50%) translateY(0); }
+    50%{ transform:translateX(-50%) translateY(3px); }
   }
   .fc-flip-front{
     box-shadow:0 6px 20px rgba(0,0,0,0.25);
   }
   .fc-flip-back{
     transform:rotateY(180deg);
+    background:linear-gradient(135deg, rgba(var(--accent-rgb),0.08), rgba(var(--accent2-rgb),0.08));
+    border-color:var(--accent);
+  }
+  .fc-flip-back .fc-flip-face-text{
     color:var(--accent);
     font-size:16px;
     font-weight:600;
-    background:linear-gradient(135deg, rgba(var(--accent-rgb),0.08), rgba(var(--accent2-rgb),0.08));
-    border-color:var(--accent);
   }
   #exammode-tab{
     display:none;
@@ -4068,8 +4127,14 @@
         </div>
         <div id="fc-card" class="fc-flip-scene" role="button" tabindex="0" aria-label="Flashcard, click or press Flip Card to reveal the answer">
           <div id="fc-card-inner" class="fc-flip-inner">
-            <div id="fc-card-front" class="fc-flip-face fc-flip-front"></div>
-            <div id="fc-card-back" class="fc-flip-face fc-flip-back"></div>
+            <div id="fc-card-front" class="fc-flip-face fc-flip-front">
+              <div id="fc-card-front-text" class="fc-flip-face-text"></div>
+              <span class="fc-scroll-hint">&#9660; scroll for more</span>
+            </div>
+            <div id="fc-card-back" class="fc-flip-face fc-flip-back">
+              <div id="fc-card-back-text" class="fc-flip-face-text"></div>
+              <span class="fc-scroll-hint">&#9660; scroll for more</span>
+            </div>
           </div>
         </div>
         <div id="fc-meta" class="qz-pool-info" style="text-align:center; margin-top:8px;"></div>
@@ -16493,9 +16558,10 @@
     fcInnerEl.classList.remove('flipped');
     void fcInnerEl.offsetWidth; /* force reflow so the instant reset applies before re-enabling transition */
     fcInnerEl.style.transition = '';
-    document.getElementById('fc-card-front').textContent = card.front;
-    document.getElementById('fc-card-back').textContent = card.back;
+    document.getElementById('fc-card-front-text').textContent = card.front;
+    document.getElementById('fc-card-back-text').textContent = card.back;
     fcFlipped = false;
+    fcUpdateScrollHints();
     document.getElementById('fc-know-actions').style.display = 'none';
     const metaBits = [card.noteTopic, card.domainLabel].filter(Boolean);
     let metaText = metaBits.join(' · ');
@@ -16517,11 +16583,37 @@
     }
   }
 
+  /* Detects whether the front/back flashcard face content overflows its
+     visible box and, if so, adds .has-overflow (which shows the bottom fade
+     + "scroll for more" hint and enables the scrollbar styling). Re-checked
+     whenever card content changes or the card flips, since front/back text
+     lengths differ. A scroll listener hides the hint once the user has
+     actually scrolled that face, so it doesn't linger once they've found it. */
+  function fcUpdateScrollHints(){
+    ['fc-card-front', 'fc-card-back'].forEach(id => {
+      const face = document.getElementById(id);
+      if(!face) return;
+      requestAnimationFrame(() => {
+        const overflows = face.scrollHeight > face.clientHeight + 2;
+        face.classList.toggle('has-overflow', overflows);
+      });
+    });
+  }
+  ['fc-card-front', 'fc-card-back'].forEach(id => {
+    const face = document.getElementById(id);
+    if(face){
+      face.addEventListener('scroll', () => {
+        if(face.scrollTop > 8) face.classList.remove('has-overflow');
+      }, { passive:true });
+    }
+  });
+
   function fcFlip(){
     if(fcPool.length === 0) return;
     fcFlipped = !fcFlipped;
     document.getElementById('fc-card-inner').classList.toggle('flipped', fcFlipped);
     document.getElementById('fc-know-actions').style.display = fcFlipped ? 'flex' : 'none';
+    fcUpdateScrollHints();
   }
 
   function fcMark(rating){
@@ -19969,6 +20061,19 @@
     }
   });
 })();
+</script>
+
+<script>
+  // Offline/PWA support: registers sw.js so the app (and its two CDN libraries)
+  // are cached after the first online load, enabling full offline use afterward.
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {
+        // Offline registration silently no-ops if sw.js isn't reachable (e.g. local file:// use) —
+        // the app still works fully online/offline via localStorage regardless.
+      });
+    });
+  }
 </script>
 
 </body>
