@@ -1094,6 +1094,42 @@
     margin-top:20px;
     display:none;
   }
+  /* Instant feedback ("was I right, and why") panel — Quiz + Exam Mode */
+  .answer-feedback{
+    margin-top:16px;
+    padding:14px 16px;
+    border-radius:8px;
+    border:1px solid var(--border);
+    border-left-width:4px;
+    background:var(--panel2);
+    font-size:13.5px;
+    line-height:1.5;
+  }
+  .answer-feedback.fb-correct{border-color:var(--good); background:rgba(var(--good-rgb),0.08);}
+  .answer-feedback.fb-incorrect{border-color:var(--danger); background:rgba(var(--danger-rgb),0.08);}
+  .answer-feedback .fb-verdict{font-weight:700; font-size:15px; margin-bottom:6px;}
+  .answer-feedback.fb-correct .fb-verdict{color:var(--good);}
+  .answer-feedback.fb-incorrect .fb-verdict{color:var(--danger);}
+  .answer-feedback .fb-answer{margin-bottom:8px;}
+  .answer-feedback .fb-why-title{
+    font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:0.08em;
+    color:var(--accent); margin:10px 0 4px 0; text-transform:uppercase;
+  }
+  .why-line{margin:4px 0;}
+  .why-muted{color:var(--muted);}
+  .why-src{color:var(--muted); font-size:11.5px;}
+  .why-rows{margin:4px 0; padding-left:0; list-style:none;}
+  .why-rows li{margin:3px 0;}
+  .why-ok{color:var(--good); font-weight:700;}
+  .why-bad{color:var(--danger); font-weight:700;}
+  .exam-option-btn.fb-correct{background:rgba(var(--good-rgb),0.15); border-color:var(--good); color:var(--good);}
+  .exam-option-btn.fb-incorrect{background:rgba(var(--danger-rgb),0.15); border-color:var(--danger); color:var(--danger);}
+  .exam-option-btn:disabled{cursor:default; opacity:1;}
+  #exam-options.exam-locked{pointer-events:none; opacity:0.8;}
+  .exam-qgrid-btn.fb-correct{background:rgba(var(--good-rgb),0.2); border-color:var(--good); color:var(--good);}
+  .exam-qgrid-btn.fb-incorrect{background:rgba(var(--danger-rgb),0.2); border-color:var(--danger); color:var(--danger);}
+  .qz-review-item details{margin-top:6px;}
+  .qz-review-item summary{cursor:pointer; color:var(--accent); font-size:12px;}
   .qz-score-big{
     font-size:36px;
     font-weight:700;
@@ -3957,6 +3993,7 @@
         <div class="quiz-question-card">
           <div id="quiz-question-text"></div>
           <div id="quiz-options"></div>
+          <div id="quiz-feedback" class="answer-feedback" style="display:none;" aria-live="polite"></div>
           <button id="quiz-next-btn" class="btn primary">Next Question</button>
         </div>
       </div>
@@ -3967,7 +4004,7 @@
     <div id="exam-panel" style="display:none;">
       <div id="exam-intro">
         <h2>Ready for a full-length practice exam?</h2>
-        <p>Configure everything below, then click "Start Exam". Like the real thing, you won't see whether you're right or wrong until you submit.</p>
+        <p>Configure everything below, then click "Start Exam". With <strong>Instant feedback</strong> on, you see whether each answer is right or wrong — and why — as soon as you answer. Turn it off (or use Cold Run) to simulate the real thing, where nothing is revealed until you submit.</p>
 
         <div class="exam-config-box">
           <div class="qz-config-label" style="margin-top:0;">Certification</div>
@@ -4011,6 +4048,9 @@
           <label class="qz-checkbox-row" style="margin-top:12px;">
             <input type="checkbox" id="exam-use-weighting" checked> <span>Weight questions by official domain blueprint</span>
           </label>
+          <label class="qz-checkbox-row" style="margin-top:12px;">
+            <input type="checkbox" id="exam-instant-feedback" checked> <span>⚡ Instant feedback — show right/wrong and why after each question (instead of waiting until you submit)</span>
+          </label>
           <div class="qz-pool-info" style="margin-top:6px;">Tip: to work through your whole bank untimed, click "Use all available questions", check "Untimed", and turn off blueprint weighting.</div>
 
           <div id="exam-pbq-box" style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border);">
@@ -4047,9 +4087,11 @@
           <div id="exam-question-text"></div>
           <div id="exam-select-hint"></div>
           <div id="exam-options"></div>
+          <div id="exam-feedback" class="answer-feedback" style="display:none;" aria-live="polite"></div>
           <div id="exam-nav-buttons">
             <button id="exam-back-btn" class="btn">Back</button>
             <button id="exam-flag-btn" class="btn" type="button">🚩 Flag for Review</button>
+            <button id="exam-check-btn" class="btn primary" type="button" style="display:none;">✔ Check Answer</button>
             <button id="exam-next-btn" class="btn primary">Next Question</button>
             <button id="exam-review-btn" class="btn primary" type="button">📋 Review &amp; Submit</button>
             <button id="exam-submit-btn" class="btn danger" style="display:none;">Submit Exam</button>
@@ -8095,11 +8137,14 @@
     { domain:'secops', question:'Name the five baseline API security controls that apply across nearly every category of API risk.', options:['Firewalls, antivirus, backups, patching, and physical security', 'Strong authentication/authorization, encrypting data in transit, input validation/sanitization, logging/monitoring, and rate limiting', 'Load balancing, caching, compression, CDN usage, and DNS filtering', 'VLANs, NAC, 802.1X, port security, and DHCP snooping'], correct:[1] }
   ];
 
+  /* Optional per-question field: explanation:'...' (or why:'...') — a hand-written
+     reason the answer is correct. Shown by the instant-feedback panel when present. */
   const STATIC_QUESTION_BANK = RAW_QUESTION_BANK.map(q => ({
     domain: q.domain,
     question: q.question,
     options: q.options,
-    answer: q.correct.map(i => q.options[i])
+    answer: q.correct.map(i => q.options[i]),
+    explanation: q.explanation || q.why || ''
   }));
 
   /* ---------- Performance-Based Questions (PBQs) ----------
@@ -9145,7 +9190,8 @@
       domain: q.domain,
       question: q.question,
       options: q.options,
-      answer: q.correct.map(i => q.options[i])
+      answer: q.correct.map(i => q.options[i]),
+      explanation: q.explanation || q.why || ''
     }));
   }
 
@@ -16717,6 +16763,7 @@
           question: `What is the best definition of "${item.term}"?`,
           options,
           answer: item.def,
+          explainTerm: item.term, explainDef: item.def, explainTopic: item.noteTopic,
           cert: item.cert, domain: item.domain, domainLabel: item.domainLabel
         };
       }else{
@@ -16726,6 +16773,7 @@
           question: `Which term matches this definition: "${item.def}"?`,
           options,
           answer: item.term,
+          explainTerm: item.term, explainDef: item.def, explainTopic: item.noteTopic,
           cert: item.cert, domain: item.domain, domainLabel: item.domainLabel
         };
       }
@@ -16923,6 +16971,9 @@
       optsWrap.appendChild(btn);
     });
     document.getElementById('quiz-next-btn').style.display = 'none';
+    const quizFb = document.getElementById('quiz-feedback');
+    quizFb.style.display = 'none';
+    quizFb.innerHTML = '';
     startQuizTimer();
   }
 
@@ -16949,7 +17000,12 @@
       }
     }
     const chosenLabel = opt === '__TIMEOUT__' ? '(no answer — time expired)' : opt;
-    quizState.log.push({ question: q.question, chosen: chosenLabel, answer: q.answer, correct, domain: q.domain, domainLabel: q.domainLabel });
+    const quizWhy = buildWhyHtml(q, { isCorrect: correct, chosenList: opt === '__TIMEOUT__' ? [] : [opt] });
+    quizState.log.push({ question: q.question, chosen: chosenLabel, answer: q.answer, correct, domain: q.domain, domainLabel: q.domainLabel, why: quizWhy });
+    const quizFb = document.getElementById('quiz-feedback');
+    quizFb.className = 'answer-feedback ' + (correct ? 'fb-correct' : 'fb-incorrect');
+    quizFb.innerHTML = feedbackPanelHtml(correct, opt === '__TIMEOUT__' ? "Time's up" : null, q.answer, quizWhy);
+    quizFb.style.display = 'block';
 
     document.querySelectorAll('.quiz-option-btn').forEach(b => {
       b.disabled = true;
@@ -16984,6 +17040,7 @@
         <div class="qz-review-q">${i+1}. ${escapeHtml(l.question)}</div>
         <div class="qz-review-a">Your answer: ${escapeHtml(l.chosen)}</div>
         ${l.correct ? '' : `<div class="qz-review-correct-a">Correct answer: ${escapeHtml(l.answer)}</div>`}
+        ${l.why ? `<details><summary>Why?</summary>${l.why}</details>` : ''}
       </div>`;
     }).join('');
     const bannerKind = pct >= 80 ? 'good' : (pct >= 60 ? 'warn' : 'bad');
@@ -17184,6 +17241,7 @@
       q.domain = domainKey;
       q.domainLabel = domainLabelFor(certKey, domainKey);
       q.fromNotes = true;
+      q.explainTerm = item.term; q.explainDef = item.def; q.explainTopic = item.noteTopic;
       return q;
     });
   }
@@ -17194,6 +17252,7 @@
       const bank = QUESTION_BANKS[certKey] || [];
       list.push(...bank.filter(q => q.domain === domainKey).map(q => ({
         domain: q.domain, question: q.question, options: shuffle(q.options), answer: q.answer,
+        explanation: q.explanation || '',
         domainLabel: domainLabelFor(certKey, domainKey), fromBank: true
       })));
     }
@@ -17234,6 +17293,7 @@
             q.domain = '';
             q.domainLabel = 'Unassigned domain';
             q.fromNotes = true;
+            q.explainTerm = item.term; q.explainDef = item.def; q.explainTopic = item.noteTopic;
             list.push(q);
           });
         }
@@ -17479,7 +17539,14 @@
   function renderExamQuestion(){
     const q = examState.questions[examState.currentIndex];
     const total = examState.questions.length;
-    document.getElementById('exam-progress-text').textContent = `Question ${examState.currentIndex+1} of ${total}`;
+    const instant = !!examState.instant;
+    const checkedGrade = instant ? examState.checked[examState.currentIndex] : null;
+    let progressText = `Question ${examState.currentIndex+1} of ${total}`;
+    if(instant){
+      const done = examState.checked.filter(Boolean);
+      progressText += ` · ${done.filter(g => g.isCorrect).length}/${done.length} correct so far`;
+    }
+    document.getElementById('exam-progress-text').textContent = progressText;
     document.getElementById('exam-progress-bar-fill').style.width = (examState.currentIndex / total * 100) + '%';
     if(!examState.sgtMidShown && examState.currentIndex >= Math.floor(total / 2) && total >= 6){
       examState.sgtMidShown = true;
@@ -17502,6 +17569,9 @@
     const hintEl = document.getElementById('exam-select-hint');
     const optsWrap = document.getElementById('exam-options');
     optsWrap.innerHTML = '';
+    optsWrap.inert = false;
+    optsWrap.classList.remove('exam-locked');
+    let needsCheckBtn = !!isPBQ;
 
     if(q.type === 'match'){
       hintEl.textContent = 'Click an item on the right, then click the slot it matches — or drag it into place.';
@@ -17523,16 +17593,38 @@
       renderPBQBuild(q, optsWrap);
     }else{
       const needed = q.answer.length;
-      hintEl.textContent = needed > 1 ? `Select ${needed} answers.` : 'Select one answer.';
+      needsCheckBtn = needed > 1;
+      hintEl.textContent = needed > 1
+        ? `Select ${needed} answers${instant ? ', then click "Check Answer".' : '.'}`
+        : (instant ? 'Select one answer — you\'ll see right away whether it\'s correct.' : 'Select one answer.');
       const currentSelection = examState.selections[examState.currentIndex] || [];
       (q._displayOptions || q.options).forEach(opt => {
         const btn = document.createElement('button');
         btn.className = 'exam-option-btn' + (currentSelection.includes(opt) ? ' selected' : '');
+        if(checkedGrade){
+          btn.disabled = true;
+          if(q.answer.includes(opt)) btn.classList.add('fb-correct');
+          else if(currentSelection.includes(opt)) btn.classList.add('fb-incorrect');
+        }
         btn.innerHTML = `<span class="opt-mark"></span><span>${escapeHtml(opt)}</span>`;
         btn.addEventListener('click', () => toggleExamOption(opt, needed));
         optsWrap.appendChild(btn);
       });
     }
+
+    /* Instant feedback: once a question is checked it locks, and the verdict + reason show below it. */
+    const fbEl = document.getElementById('exam-feedback');
+    if(checkedGrade){
+      if(isPBQ){ optsWrap.inert = true; optsWrap.classList.add('exam-locked'); }
+      hintEl.textContent = 'Answer locked in — review the feedback below, then move on.';
+      fbEl.className = 'answer-feedback ' + (checkedGrade.isCorrect ? 'fb-correct' : 'fb-incorrect');
+      fbEl.innerHTML = feedbackPanelHtml(checkedGrade.isCorrect, null, checkedGrade.answerText, buildWhyHtml(q, checkedGrade));
+      fbEl.style.display = 'block';
+    }else{
+      fbEl.style.display = 'none';
+      fbEl.innerHTML = '';
+    }
+    document.getElementById('exam-check-btn').style.display = (instant && !checkedGrade && needsCheckBtn) ? 'inline-block' : 'none';
 
     document.getElementById('exam-back-btn').style.display = examState.currentIndex === 0 ? 'none' : 'inline-block';
     const isLast = examState.currentIndex === total - 1;
@@ -17564,12 +17656,17 @@
   function renderExamQGrid(containerId, closeReviewOnClick){
     const el = document.getElementById(containerId);
     if(!el || !examState) return;
-    let html = '<div class="exam-qgrid-legend"><span>🟩 Answered</span><span>⬜ Unanswered</span><span>🚩 Flagged for review</span></div>';
+    let html = examState.instant
+      ? '<div class="exam-qgrid-legend"><span>🟩 Correct</span><span>🟥 Incorrect</span><span>⬜ Not checked yet</span><span>🚩 Flagged for review</span></div>'
+      : '<div class="exam-qgrid-legend"><span>🟩 Answered</span><span>⬜ Unanswered</span><span>🚩 Flagged for review</span></div>';
     examState.questions.forEach((q, i) => {
       const answered = isQuestionAnswered(q, examState.selections[i]);
       const flagged = !!(examState.flagged && examState.flagged[i]);
       const current = i === examState.currentIndex;
-      html += `<button type="button" class="exam-qgrid-btn${answered?' answered':''}${flagged?' flagged':''}${current?' current':''}" data-idx="${i}" title="Question ${i+1}${flagged?' — flagged':''}${answered?' — answered':' — unanswered'}">${i+1}</button>`;
+      const g = examState.instant ? examState.checked[i] : null;
+      const stateCls = g ? (g.isCorrect ? ' fb-correct' : ' fb-incorrect') : (answered ? ' answered' : '');
+      const stateTitle = g ? (g.isCorrect ? ' — correct' : ' — incorrect') : (answered ? ' — answered' : ' — unanswered');
+      html += `<button type="button" class="exam-qgrid-btn${stateCls}${flagged?' flagged':''}${current?' current':''}" data-idx="${i}" title="Question ${i+1}${flagged?' — flagged':''}${stateTitle}">${i+1}</button>`;
     });
     el.innerHTML = html;
     el.querySelectorAll('.exam-qgrid-btn').forEach(btn => {
@@ -17598,6 +17695,7 @@
 
   function toggleExamOption(opt, needed){
     const idx = examState.currentIndex;
+    if(examState.instant && examState.checked[idx]) return; // locked once checked
     let sel = examState.selections[idx] || [];
     if(sel.includes(opt)){
       sel = sel.filter(o => o !== opt);
@@ -17608,7 +17706,209 @@
       if(sel.length > needed) sel.shift();
     }
     examState.selections[idx] = sel;
+    if(examState.instant && needed === 1 && sel.length === 1){
+      checkCurrentExamQuestion();
+      return;
+    }
     renderExamQuestion();
+  }
+
+  /* ---------- Instant feedback ("was I right, and why") ---------- */
+  const EXAM_INSTANT_KEY = 'cybersec_exam_instant_feedback_v1';
+  let examForceNoInstant = false; // Cold Run always behaves like the real exam
+
+  function checkCurrentExamQuestion(){
+    if(!examState || !examState.instant || examState.finished) return;
+    const idx = examState.currentIndex;
+    if(examState.checked[idx]) return;
+    const q = examState.questions[idx];
+    if(!isQuestionAnswered(q, examState.selections[idx])){
+      showToast('Answer the question first, then check it.');
+      return;
+    }
+    const grade = gradeExamQuestion(q, examState.selections[idx]);
+    examState.checked[idx] = grade;
+    if(grade.isCorrect) playCorrectSound(); else playIncorrectSound();
+    renderExamQuestion();
+  }
+
+  /* Single source of truth for grading one exam question — used both by the
+     per-question instant check and by final scoring in finishExam(). */
+  function gradeExamQuestion(q, rawSel){
+    let isCorrect, chosenText, answerText, isPBQ = false, chosenList = [];
+    if(q.type === 'match'){
+      isPBQ = true;
+      const placed = rawSel || new Array(q.pairs.length).fill(null);
+      isCorrect = q.pairs.every((p, idx) => placed[idx] === p.right);
+      chosenText = q.pairs.map((p, idx) => `${p.left} → ${placed[idx] || '(unanswered)'}`).join('; ');
+      answerText = q.pairs.map(p => `${p.left} → ${p.right}`).join('; ');
+    }else if(q.type === 'order'){
+      isPBQ = true;
+      const order = rawSel || [];
+      isCorrect = order.length === q.steps.length && q.steps.every((s, idx) => s === order[idx]);
+      chosenText = order.map((s, idx) => `${idx+1}. ${s}`).join(' → ');
+      answerText = q.steps.map((s, idx) => `${idx+1}. ${s}`).join(' → ');
+    }else if(q.type === 'cli'){
+      isPBQ = true;
+      const typed = (rawSel && rawSel.typed) ? rawSel.typed.trim() : '';
+      isCorrect = !!typed && q.answerPattern.test(typed);
+      chosenText = typed || '(no command entered)';
+      answerText = q.example || '';
+    }else if(q.type === 'calc'){
+      isPBQ = true;
+      const norm = (s) => (s || '').trim();
+      const filled = rawSel || {};
+      isCorrect = norm(filled.networkId) === q.networkId && norm(filled.broadcast) === q.broadcast &&
+        norm(filled.firstHost) === q.firstHost && norm(filled.lastHost) === q.lastHost;
+      chosenText = `Network: ${norm(filled.networkId) || '—'}, Broadcast: ${norm(filled.broadcast) || '—'}, First host: ${norm(filled.firstHost) || '—'}, Last host: ${norm(filled.lastHost) || '—'}`;
+      answerText = `Network: ${q.networkId}, Broadcast: ${q.broadcast}, First host: ${q.firstHost}, Last host: ${q.lastHost}`;
+    }else if(q.type === 'macid'){
+      isPBQ = true;
+      const norm = (s) => (s || '').trim().toUpperCase();
+      const filled = rawSel || {};
+      isCorrect = norm(filled.oui) === norm(q.oui) && filled.addressType === q.addressType && filled.administration === q.administration;
+      chosenText = `OUI: ${filled.oui || '—'}, Type: ${filled.addressType || '—'}, Administration: ${filled.administration || '—'}`;
+      answerText = `OUI: ${q.oui}, Type: ${q.addressType}, Administration: ${q.administration}`;
+    }else if(q.type === 'build'){
+      isPBQ = true;
+      const placed = rawSel || new Array(q.slots.length).fill(null);
+      isCorrect = q.correct.every((c, sidx) => placed[sidx] === c);
+      chosenText = q.slots.map((label, sidx) => `${label}: ${placed[sidx] || '(unanswered)'}`).join('; ');
+      answerText = q.slots.map((label, sidx) => `${label}: ${q.correct[sidx]}`).join('; ');
+    }else{
+      chosenList = (rawSel || []).slice();
+      const sel = chosenList.slice().sort();
+      const ans = q.answer.slice().sort();
+      isCorrect = sel.length === ans.length && sel.every((v, idx) => v === ans[idx]);
+      chosenText = sel.length ? sel.join(', ') : '(no answer)';
+      answerText = ans.join(', ');
+    }
+    return { isCorrect, chosenText, answerText, isPBQ, chosenList, rawSel };
+  }
+
+  /* Glossary built from every note's Key Terms ("Term: Definition"). Used to
+     explain an answer when the question has no hand-written explanation. */
+  let whyGlossary = null;
+  function whyKey(s){
+    return String(s || '').toLowerCase().replace(/[“”"'‘’.]/g, '').replace(/^(an?|the)\s+/, '').replace(/\s+/g, ' ').trim();
+  }
+  function getWhyGlossary(){
+    if(whyGlossary) return whyGlossary;
+    const byTerm = new Map(), byDef = new Map(), list = [];
+    const add = (k, entry) => { k = whyKey(k); if(k.length >= 2 && !byTerm.has(k)) byTerm.set(k, entry); };
+    notes.forEach(n => parseNoteTerms(n).forEach(t => {
+      const entry = { term: t.term, def: t.def, topic: t.noteTopic };
+      list.push(entry);
+      add(t.term, entry);
+      const m = t.term.match(/^(.*?)\s*\(([^)]+)\)\s*$/); // "DNS (Domain Name System)" → both names
+      if(m){
+        add(m[1], entry);
+        /* only treat the parenthetical as an alias when one side is an acronym —
+           skips labels like "(Purpose)" or "(Definition)" */
+        const isAcr = (x) => /^[A-Z0-9][A-Z0-9.\/+-]+$/.test(x.trim());
+        if(isAcr(m[1]) || isAcr(m[2])) add(m[2], entry);
+      }
+      const dk = whyKey(t.def);
+      if(!byDef.has(dk)) byDef.set(dk, entry);
+    }));
+    whyGlossary = { byTerm, byDef, list };
+    return whyGlossary;
+  }
+  function whyLookup(text){
+    const g = getWhyGlossary();
+    const k = whyKey(text);
+    if(g.byTerm.has(k)) return g.byTerm.get(k);
+    const m = String(text).match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+    if(m) return g.byTerm.get(whyKey(m[1])) || g.byTerm.get(whyKey(m[2])) || null;
+    return null;
+  }
+  /* Loose fallback: Key Terms that are named inside the given text (longest phrase first).
+     Single common words are ignored unless they are acronyms or long enough to be specific. */
+  function whyRelated(text, max){
+    const g = getWhyGlossary();
+    const words = String(text).replace(/[^A-Za-z0-9.+\/#-]+/g, ' ').trim().split(' ');
+    const found = [], used = new Set();
+    for(let n = 5; n >= 1; n--){
+      for(let i = 0; i + n <= words.length; i++){
+        const k = whyKey(words.slice(i, i + n).join(' ').replace(/[.,]$/, ''));
+        if(k.length < 3) continue;
+        const e = g.byTerm.get(k);
+        if(!e || used.has(e)) continue;
+        if(n === 1 && !/^[A-Z0-9][A-Z0-9.\/+-]+$/.test(words[i]) && k.length < 7) continue;
+        used.add(e); found.push(e);
+        if(found.length >= max) return found;
+      }
+    }
+    return found;
+  }
+  function whyDefLine(label, entry){
+    return `<div class="why-line">${label}<strong>${escapeHtml(entry.term)}</strong> — ${escapeHtml(entry.def)} <span class="why-src">(from your notes: ${escapeHtml(entry.topic)})</span></div>`;
+  }
+
+  /* Builds the "why" HTML for one graded question. Order of preference:
+     1) a hand-written q.explanation, 2) the note term the question was built
+     from, 3) Key Terms definitions for the correct answer and for whatever
+     was picked instead, 4) the worked method / correct layout for PBQs. */
+  function buildWhyHtml(q, grade){
+    const parts = [];
+    const type = (q.type && q.type !== 'mc') ? q.type : 'mc';
+    if(q.explanation) parts.push(`<div class="why-line">${escapeHtml(q.explanation)}</div>`);
+
+    if(type === 'mc'){
+      const answers = Array.isArray(q.answer) ? q.answer : [q.answer];
+      const wrongPicks = (grade.chosenList || []).filter(c => !answers.includes(c));
+      const g = getWhyGlossary();
+      if(q.explainTerm){
+        parts.push(whyDefLine('', { term: q.explainTerm, def: q.explainDef, topic: q.explainTopic || 'your notes' }));
+      }else if(!q.explanation){
+        answers.forEach(a => { const e = whyLookup(a); if(e) parts.push(whyDefLine('', e)); });
+      }
+      wrongPicks.forEach(c => {
+        const asTerm = whyLookup(c);
+        if(asTerm){ parts.push(whyDefLine('Why not your pick — ', asTerm)); return; }
+        const asDef = g.byDef.get(whyKey(c));
+        if(asDef) parts.push(`<div class="why-line">Your pick actually describes <strong>${escapeHtml(asDef.term)}</strong>, not what the question asked for.</div>`);
+      });
+      if(!parts.length){
+        let rel = whyRelated(answers.join(' ; '), 2);
+        if(!rel.length) rel = whyRelated(q.question, 2);
+        rel.forEach(e => parts.push(whyDefLine('Related — ', e)));
+      }
+    }else if(type === 'match' || type === 'build'){
+      const lefts = type === 'match' ? q.pairs.map(p => p.left) : q.slots;
+      const rights = type === 'match' ? q.pairs.map(p => p.right) : q.correct;
+      const placed = grade.rawSel || [];
+      parts.push('<ul class="why-rows">' + lefts.map((l, i) => {
+        const ok = placed[i] === rights[i];
+        return `<li><span class="${ok ? 'why-ok' : 'why-bad'}">${ok ? '✓' : '✗'}</span> ${escapeHtml(l)} → <strong>${escapeHtml(rights[i])}</strong>${ok ? '' : ` <span class="why-muted">(you had: ${escapeHtml(placed[i] || 'nothing')})</span>`}</li>`;
+      }).join('') + '</ul>');
+      rights.forEach(r => { const e = whyLookup(r); if(e) parts.push(whyDefLine('', e)); });
+    }else if(type === 'order'){
+      const order = grade.rawSel || [];
+      parts.push('<ul class="why-rows">' + q.steps.map((s, i) => {
+        const ok = order[i] === s;
+        return `<li><span class="${ok ? 'why-ok' : 'why-bad'}">${ok ? '✓' : '✗'}</span> ${i+1}. ${escapeHtml(s)}</li>`;
+      }).join('') + '</ul>');
+    }else if(type === 'cli'){
+      if(q.example) parts.push(`<div class="why-line">An accepted command: <code>${escapeHtml(q.example)}</code></div>`);
+      if(q.hint) parts.push(`<div class="why-line">${escapeHtml(q.hint)}</div>`);
+    }else if(type === 'calc'){
+      parts.push(renderSubnetStepsHtml(q));
+    }else if(type === 'macid'){
+      parts.push(renderMacIdStepsHtml(q));
+    }
+
+    if(!parts.length){
+      parts.push('<div class="why-line why-muted">No written explanation for this question yet, and nothing in your notes\' Key Terms covers it. Add the term to a note as "Term: Definition" and it will show up here next time.</div>');
+    }
+    return parts.join('');
+  }
+
+  function feedbackPanelHtml(isCorrect, verdictOverride, answerText, whyHtml){
+    const verdict = verdictOverride ? `⏱ ${escapeHtml(verdictOverride)}` : (isCorrect ? '✓ Correct' : '✗ Incorrect');
+    return `<div class="fb-verdict">${verdict}</div>
+      <div class="fb-answer"><strong>Correct answer:</strong> ${escapeHtml(answerText || '')}</div>
+      <div class="fb-why-title">Why</div>${whyHtml}`;
   }
 
   /* ---- PBQ: match (drag-and-drop pairing) ---- */
@@ -17964,55 +18264,8 @@
     const domainStats = {};
     const log = [];
     examState.questions.forEach((q, i) => {
-      const rawSel = examState.selections[i];
-      let isCorrect, chosenText, answerText, isPBQ = false;
-
-      if(q.type === 'match'){
-        isPBQ = true;
-        const placed = rawSel || new Array(q.pairs.length).fill(null);
-        isCorrect = q.pairs.every((p, idx) => placed[idx] === p.right);
-        chosenText = q.pairs.map((p, idx) => `${p.left} → ${placed[idx] || '(unanswered)'}`).join('; ');
-        answerText = q.pairs.map(p => `${p.left} → ${p.right}`).join('; ');
-      }else if(q.type === 'order'){
-        isPBQ = true;
-        const order = rawSel || [];
-        isCorrect = order.length === q.steps.length && q.steps.every((s, idx) => s === order[idx]);
-        chosenText = order.map((s, idx) => `${idx+1}. ${s}`).join(' → ');
-        answerText = q.steps.map((s, idx) => `${idx+1}. ${s}`).join(' → ');
-      }else if(q.type === 'cli'){
-        isPBQ = true;
-        const typed = (rawSel && rawSel.typed) ? rawSel.typed.trim() : '';
-        isCorrect = !!typed && q.answerPattern.test(typed);
-        chosenText = typed || '(no command entered)';
-        answerText = q.example || '';
-      }else if(q.type === 'calc'){
-        isPBQ = true;
-        const norm = (s) => (s || '').trim();
-        const filled = rawSel || {};
-        isCorrect = norm(filled.networkId) === q.networkId && norm(filled.broadcast) === q.broadcast &&
-          norm(filled.firstHost) === q.firstHost && norm(filled.lastHost) === q.lastHost;
-        chosenText = `Network: ${norm(filled.networkId) || '—'}, Broadcast: ${norm(filled.broadcast) || '—'}, First host: ${norm(filled.firstHost) || '—'}, Last host: ${norm(filled.lastHost) || '—'}`;
-        answerText = `Network: ${q.networkId}, Broadcast: ${q.broadcast}, First host: ${q.firstHost}, Last host: ${q.lastHost}`;
-      }else if(q.type === 'macid'){
-        isPBQ = true;
-        const norm = (s) => (s || '').trim().toUpperCase();
-        const filled = rawSel || {};
-        isCorrect = norm(filled.oui) === norm(q.oui) && filled.addressType === q.addressType && filled.administration === q.administration;
-        chosenText = `OUI: ${filled.oui || '—'}, Type: ${filled.addressType || '—'}, Administration: ${filled.administration || '—'}`;
-        answerText = `OUI: ${q.oui}, Type: ${q.addressType}, Administration: ${q.administration}`;
-      }else if(q.type === 'build'){
-        isPBQ = true;
-        const placed = rawSel || new Array(q.slots.length).fill(null);
-        isCorrect = q.correct.every((c, sidx) => placed[sidx] === c);
-        chosenText = q.slots.map((label, sidx) => `${label}: ${placed[sidx] || '(unanswered)'}`).join('; ');
-        answerText = q.slots.map((label, sidx) => `${label}: ${q.correct[sidx]}`).join('; ');
-      }else{
-        const sel = (rawSel || []).slice().sort();
-        const ans = q.answer.slice().sort();
-        isCorrect = sel.length === ans.length && sel.every((v, idx) => v === ans[idx]);
-        chosenText = sel.length ? sel.join(', ') : '(no answer)';
-        answerText = ans.join(', ');
-      }
+      const grade = gradeExamQuestion(q, examState.selections[i]);
+      const { isCorrect, chosenText, answerText, isPBQ } = grade;
 
       if(isCorrect) correctCount++;
       if(!isPBQ && !isCorrect) addToMissedQueue(q);
@@ -18020,7 +18273,7 @@
       if(!domainStats[dKey]) domainStats[dKey] = { correct: 0, total: 0, label: q.domainLabel || 'Unassigned domain' };
       domainStats[dKey].total++;
       if(isCorrect) domainStats[dKey].correct++;
-      log.push({ question: q.question, chosen: chosenText, answer: answerText, correct: isCorrect, isPBQ });
+      log.push({ question: q.question, chosen: chosenText, answer: answerText, correct: isCorrect, isPBQ, why: buildWhyHtml(q, grade) });
     });
 
     const total = examState.questions.length;
@@ -18064,6 +18317,7 @@
         <div class="qz-review-q">${i+1}. ${escapeHtml(l.question)}${pbqTag}</div>
         <div class="qz-review-a">Your answer: ${escapeHtml(l.chosen)}</div>
         ${l.correct ? '' : `<div class="qz-review-correct-a">Correct answer: ${escapeHtml(l.answer)}</div>`}
+        ${l.why ? `<details><summary>Why?</summary>${l.why}</details>` : ''}
       </div>`;
     }).join('');
 
@@ -18228,6 +18482,7 @@
   document.getElementById('quiz-custom-bank-source').addEventListener('change', renderQuizCustomPoolInfo);
 
   document.getElementById('quiz-start-btn').addEventListener('click', () => {
+    whyGlossary = null; // pick up any notes edited since the last quiz
     const source = getQuizSource();
     const countInput = document.getElementById('quiz-question-count');
     const speedDrill = document.getElementById('quiz-speed-drill').checked;
@@ -18244,6 +18499,8 @@
         question: item.question,
         options: shuffle(item.options.slice()),
         answer: Array.isArray(item.answer) ? item.answer[0] : item.answer,
+        explanation: item.explanation || '',
+        explainTerm: item.explainTerm, explainDef: item.explainDef, explainTopic: item.explainTopic,
         domain: item.domain, domainLabel: item.domainLabel
       }));
       const customTimerRaw = parseInt(document.getElementById('quiz-custom-timer').value, 10);
@@ -18350,7 +18607,9 @@
     untimedCb.dispatchEvent(new Event('change'));
     document.getElementById('exam-time-limit').value = cert.examMinutes;
 
-    document.getElementById('exam-start-btn').click();
+    examForceNoInstant = true; // a Cold Run never reveals answers until you submit
+    try{ document.getElementById('exam-start-btn').click(); }
+    finally{ examForceNoInstant = false; }
   });
 
   document.getElementById('exam-allpbq-practice-btn').addEventListener('click', () => {
@@ -18400,7 +18659,15 @@
     pbqPracticeFilterType = null;
   });
 
+  (function initExamInstantToggle(){
+    const cb = document.getElementById('exam-instant-feedback');
+    try{ const saved = localStorage.getItem(EXAM_INSTANT_KEY); if(saved !== null) cb.checked = saved === '1'; }catch(e){}
+    cb.addEventListener('change', () => { try{ localStorage.setItem(EXAM_INSTANT_KEY, cb.checked ? '1' : '0'); }catch(e){} });
+  })();
+  document.getElementById('exam-check-btn').addEventListener('click', checkCurrentExamQuestion);
+
   document.getElementById('exam-start-btn').addEventListener('click', () => {
+    whyGlossary = null; // pick up any notes edited since the last attempt
     const useWeighting = document.getElementById('exam-use-weighting').checked;
     const source = getExamSource();
     const certKey = getActiveCert();
@@ -18450,6 +18717,8 @@
       currentIndex: 0,
       selections: questions.map(() => null),
       flagged: questions.map(() => false),
+      instant: document.getElementById('exam-instant-feedback').checked && !examForceNoInstant,
+      checked: questions.map(() => null),
       endTime: endTime,
       finished: false,
       passingScore: cert.passingScore,
