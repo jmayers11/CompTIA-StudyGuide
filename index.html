@@ -19105,7 +19105,9 @@
   document.getElementById('exam-check-btn').addEventListener('click', checkCurrentExamQuestion);
   document.getElementById('exam-exit-btn').addEventListener('click', () => {
     if(!examState) return;
-    const touched = examState.questions.some((q, i) => isQuestionAnswered(q, examState.selections[i]));
+    /* Ordering questions start pre-filled with a shuffled order, so they don't count as "touched". */
+    const touched = examState.checked.some(Boolean) ||
+      examState.questions.some((q, i) => q.type !== 'order' && isQuestionAnswered(q, examState.selections[i]));
     if(touched && !confirm('Leave this exam and go back to setup? This attempt will not be scored or saved.')) return;
     resetExamPanel();
   });
@@ -22887,6 +22889,14 @@
     activeTrack = savedTrack;
     const badge = document.getElementById('active-track-badge');
     if(badge) badge.textContent = `${TRACKS[savedTrack].icon} ${TRACKS[savedTrack].label} track`;
+    /* Default Exam Mode's certification to the saved track on every load. Without this the
+       dropdown fell back to Network+ after a reload, whatever track was active. */
+    if(TRACKS[savedTrack].cert){
+      ['exam-cert-select', 'exam-cert-input'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.value = TRACKS[savedTrack].cert;
+      });
+    }
   }
   quizSelectedNoteIds = new Set(visibleNotes().map(n => n.id));
   renderTagFilters();
