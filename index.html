@@ -4297,6 +4297,22 @@
 <script>
 (function(){
   const STORAGE_KEY = 'cybersec_notes_v1';
+  /* All saves go through lsSet so a full browser storage (Safari on iPhone allows only about
+     5 MB per site) can never throw in the middle of an action and silently abort it — which is
+     what made "Start Exam" do nothing. A failed save warns once instead. */
+  let storageWarned = false;
+  function lsSet(key, value){
+    try{
+      localStorage.setItem(key, value);
+      return true;
+    }catch(e){
+      if(!storageWarned){
+        storageWarned = true;
+        setTimeout(() => { try{ showToast('⚠️ This browser\'s storage is full — some progress may not be saved. Use Backup to keep a copy.'); }catch(_){} }, 0);
+      }
+      return false;
+    }
+  }
   const TRACK_KEY = 'cybersec_track_v1';
   /* Tracks are the app's "front door" — a lightweight scope layer on top of
      the existing examCert field already present on every note. Choosing a
@@ -4345,7 +4361,7 @@
   function setActiveTrack(key){
     if(!TRACKS[key]) return;
     activeTrack = key;
-    localStorage.setItem(TRACK_KEY, key);
+    lsSet(TRACK_KEY, key);
     document.getElementById('track-gate').style.display = 'none';
     const badge = document.getElementById('active-track-badge');
     if(badge) badge.textContent = `${TRACKS[key].icon} ${TRACKS[key].label} track`;
@@ -4390,7 +4406,7 @@
     }catch(e){ missedQueue = []; }
   }
   function persistMissedQueue(){
-    localStorage.setItem(MISSED_QUEUE_KEY, JSON.stringify(missedQueue));
+    lsSet(MISSED_QUEUE_KEY, JSON.stringify(missedQueue));
   }
   function missedQueueKey(q){
     const ansText = Array.isArray(q.answer) ? q.answer.join('|') : q.answer;
@@ -4458,7 +4474,7 @@
     }catch(e){ progressHistory = { quizAttempts: [], examAttempts: [] }; }
   }
   function persistProgressHistory(){
-    localStorage.setItem(PROGRESS_KEY, JSON.stringify(progressHistory));
+    lsSet(PROGRESS_KEY, JSON.stringify(progressHistory));
   }
   function recordQuizAttempt(score, total, domainStats, source){
     progressHistory.quizAttempts.push({ ts: Date.now(), score, total, source: source || 'notes', domainStats: domainStats || {} });
@@ -4482,7 +4498,7 @@
     }catch(e){ xpState = { xp: 0, currentStreak: 0, longestStreak: 0, lastActiveDate: null, streakFreezes: 0 }; }
   }
   function persistXpState(){
-    localStorage.setItem(XP_KEY, JSON.stringify(xpState));
+    lsSet(XP_KEY, JSON.stringify(xpState));
   }
   function todayDateStr(){
     const d = new Date();
@@ -16536,15 +16552,60 @@
     alert('Added ' + newNotes.length + ' note(s): ' + newNotes.map(n => n.topic).join(', '));
   }
 
+  /* Built-in notes are large (several MB in total). Storing a second full copy of them in
+     browser storage filled Safari's quota on iPhone, so the text of a built-in note that the
+     user has not edited is left out when saving and filled back in from DEFAULT_SEED_NOTES on
+     load. Anything the user wrote or changed is always stored in full. */
+  const SEED_TEXT_FIELDS = ['terms', 'summary', 'questions'];
+  let seedByTopic = null;
+  function getSeedByTopic(){
+    if(!seedByTopic){
+      seedByTopic = new Map();
+      DEFAULT_SEED_NOTES.forEach(n => { if(!seedByTopic.has(n.topic)) seedByTopic.set(n.topic, n); });
+    }
+    return seedByTopic;
+  }
+  function serializeNotes(){
+    const seeds = getSeedByTopic();
+    return JSON.stringify(notes.map(n => {
+      const seed = seeds.get(n.topic);
+      if(!seed) return n;
+      const omitted = SEED_TEXT_FIELDS.filter(f => typeof n[f] === 'string' && n[f].length > 0 && n[f] === seed[f]);
+      if(!omitted.length) return n;
+      const slim = Object.assign({}, n);
+      omitted.forEach(f => { delete slim[f]; });
+      slim._seedFields = omitted;
+      return slim;
+    }));
+  }
+  function hydrateNotes(list){
+    const seeds = getSeedByTopic();
+    list.forEach(n => {
+      if(!n || !Array.isArray(n._seedFields)) return;
+      const seed = seeds.get(n.topic);
+      n._seedFields.forEach(f => { if(n[f] === undefined) n[f] = seed ? seed[f] : ''; });
+      delete n._seedFields;
+    });
+    return list;
+  }
   function load(){
+    let raw = null;
     try{
-      const raw = localStorage.getItem(STORAGE_KEY);
-      notes = raw ? JSON.parse(raw) : [];
+      raw = localStorage.getItem(STORAGE_KEY);
+      notes = raw ? hydrateNotes(JSON.parse(raw)) : [];
+      if(!Array.isArray(notes)) notes = [];
     }catch(e){ notes = []; }
     seedDefaultNotesIfEmpty();
+    /* One-time shrink of notes saved by earlier versions, which frees most of the storage. */
+    try{
+      if(raw){
+        const compact = serializeNotes();
+        if(compact.length < raw.length) lsSet(STORAGE_KEY, compact);
+      }
+    }catch(e){}
   }
   function persist(){
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+    lsSet(STORAGE_KEY, serializeNotes());
   }
   function uid(){
     return 'n_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8);
@@ -16599,7 +16660,7 @@
   }
   function toggleSound(){
     soundEnabled = !soundEnabled;
-    localStorage.setItem(SOUND_KEY, soundEnabled ? '1' : '0');
+    lsSet(SOUND_KEY, soundEnabled ? '1' : '0');
     const btn = document.getElementById('sound-toggle-btn');
     if(btn) btn.textContent = soundEnabled ? '🔊' : '🔇';
     if(soundEnabled) playTone(659.25, 0, 0.1, 'sine');
@@ -17740,18 +17801,24 @@
     catch(e){ recentExamQuestions = {}; }
   })();
   function persistRecentExamQuestions(){
-    localStorage.setItem(RECENT_EXAM_Q_KEY, JSON.stringify(recentExamQuestions));
+    lsSet(RECENT_EXAM_Q_KEY, JSON.stringify(recentExamQuestions));
+  }
+  function recentKey(text){
+    let h = 5381;
+    for(let i = 0; i < text.length; i++){ h = ((h << 5) + h + text.charCodeAt(i)) >>> 0; }
+    return '#' + h.toString(36) + text.length.toString(36);
   }
   function recordRecentExamQuestions(certKey, questions){
-    const seen = recentExamQuestions[certKey] || [];
-    const updated = seen.concat(questions.map(q => q.question));
+    // older entries are full question text; convert them so the list stays small
+    const seen = (recentExamQuestions[certKey] || []).map(e => e.charAt(0) === '#' ? e : recentKey(e));
+    const updated = seen.concat(questions.map(q => recentKey(q.question)));
     // cap the rolling window so it doesn't grow forever and eventually excludes an entire small bank
     recentExamQuestions[certKey] = updated.slice(-250);
     persistRecentExamQuestions();
   }
   function preferUnseenQuestions(items, certKey, needed){
     const seen = new Set(recentExamQuestions[certKey] || []);
-    const unseen = items.filter(i => !seen.has(i.question));
+    const unseen = items.filter(i => !seen.has(i.question) && !seen.has(recentKey(i.question)));
     return unseen.length >= needed ? unseen : items;
   }
 
@@ -19100,7 +19167,7 @@
   (function initExamInstantToggle(){
     const cb = document.getElementById('exam-instant-feedback');
     try{ const saved = localStorage.getItem(EXAM_INSTANT_KEY); if(saved !== null) cb.checked = saved === '1'; }catch(e){}
-    cb.addEventListener('change', () => { try{ localStorage.setItem(EXAM_INSTANT_KEY, cb.checked ? '1' : '0'); }catch(e){} });
+    cb.addEventListener('change', () => { try{ lsSet(EXAM_INSTANT_KEY, cb.checked ? '1' : '0'); }catch(e){} });
   })();
   document.getElementById('exam-check-btn').addEventListener('click', checkCurrentExamQuestion);
   document.getElementById('exam-exit-btn').addEventListener('click', () => {
@@ -19177,6 +19244,7 @@
     document.getElementById('exam-runner').style.display = 'block';
     examState.sgtMidShown = false;
     renderExamQuestion();
+    try{ document.getElementById('exam-runner').scrollIntoView({ block: 'start' }); }catch(e){}
     sgtSay(SGT_START_LINES[Math.floor(Math.random() * SGT_START_LINES.length)], 6000);
   });
 
@@ -19235,7 +19303,7 @@
     }catch(e){ fcMastery = {}; }
   }
   function persistFlashcardMastery(){
-    localStorage.setItem(FC_MASTERY_KEY, JSON.stringify(fcMastery));
+    lsSet(FC_MASTERY_KEY, JSON.stringify(fcMastery));
   }
   function fcKeyFor(card){
     return (card.front + '::' + card.back).slice(0, 300);
@@ -19785,7 +19853,7 @@
     }catch(e){ dailyChallengeState = { date: null, cert: null, qIndex: null, picked: null, correct: null, streak: 0, longestStreak: 0 }; }
   }
   function persistDailyChallengeState(){
-    localStorage.setItem(DAILY_CHALLENGE_KEY, JSON.stringify(dailyChallengeState));
+    lsSet(DAILY_CHALLENGE_KEY, JSON.stringify(dailyChallengeState));
   }
   function hashStrToInt(s){
     let h = 0;
@@ -19916,7 +19984,7 @@
     const unlockedNow = BADGE_DEFS.filter(b => b.check()).map(b => b.title);
     const newOnes = unlockedNow.filter(t => !seen.includes(t));
     if(newOnes.length > 0){
-      localStorage.setItem(BADGE_SEEN_KEY, JSON.stringify(unlockedNow));
+      lsSet(BADGE_SEEN_KEY, JSON.stringify(unlockedNow));
       fireConfetti(80);
       showToast('🏆 Badge unlocked: ' + newOnes.join(', '));
     }
@@ -20195,7 +20263,7 @@
   function logActivity(text){
     activityLog.push({ ts: Date.now(), text });
     if(activityLog.length > 40) activityLog = activityLog.slice(-40);
-    localStorage.setItem(ACTIVITY_LOG_KEY, JSON.stringify(activityLog));
+    lsSet(ACTIVITY_LOG_KEY, JSON.stringify(activityLog));
     renderActivityFeed();
   }
   function fmtLogTime(ts){
@@ -20320,7 +20388,7 @@
     document.querySelectorAll('.theme-swatch-btn').forEach(btn => {
       btn.classList.toggle('active', btn.getAttribute('data-theme') === name);
     });
-    localStorage.setItem(THEME_KEY, name);
+    lsSet(THEME_KEY, name);
   }
   document.querySelectorAll('.theme-swatch-btn[data-theme]').forEach(btn => {
     btn.addEventListener('click', () => applyTheme(btn.getAttribute('data-theme')));
@@ -20337,7 +20405,7 @@
       btn.textContent = mode === 'compact' ? '⬆' : '⬍';
       btn.title = mode === 'compact' ? 'Switch to Comfortable layout' : 'Switch to Compact layout';
     }
-    localStorage.setItem(DENSITY_KEY, mode);
+    lsSet(DENSITY_KEY, mode);
   }
   document.getElementById('density-toggle-btn').addEventListener('click', () => {
     const next = document.body.classList.contains('density-compact') ? 'comfortable' : 'compact';
@@ -20358,7 +20426,7 @@
       btn.textContent = TEXT_SIZE_LABELS[mode] || 'A';
       btn.title = `Text size: ${mode === 'normal' ? 'Normal' : mode === 'large' ? 'Large' : 'X-Large'} (click to cycle)`;
     }
-    localStorage.setItem(TEXT_SIZE_KEY, mode);
+    lsSet(TEXT_SIZE_KEY, mode);
   }
   document.getElementById('text-size-btn').addEventListener('click', () => {
     const current = localStorage.getItem(TEXT_SIZE_KEY) || 'normal';
@@ -20372,7 +20440,7 @@
       btn.classList.toggle('active', !!on);
       btn.title = on ? 'Switch back to default font' : 'Toggle dyslexia-friendly font';
     }
-    localStorage.setItem(DYSLEXIA_FONT_KEY, on ? '1' : '0');
+    lsSet(DYSLEXIA_FONT_KEY, on ? '1' : '0');
   }
   document.getElementById('dyslexia-toggle-btn').addEventListener('click', () => {
     applyDyslexiaFont(!document.body.classList.contains('dyslexia-font'));
@@ -20436,7 +20504,7 @@
   }
   function obEndTour(){
     document.getElementById('onboarding-overlay').style.display = 'none';
-    localStorage.setItem(ONBOARDING_KEY, '1');
+    lsSet(ONBOARDING_KEY, '1');
   }
   function startOnboardingTour(){
     obShowStep(0);
@@ -20617,6 +20685,8 @@
       const v = localStorage.getItem(k);
       if(v !== null) data[k] = v;
     });
+    /* Backups always carry every note in full, so they stay self-contained. */
+    data[STORAGE_KEY] = JSON.stringify(notes);
     const payload = { app: 'CYBERSEC-OS', version: 1, exportedAt: new Date().toISOString(), data };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -20815,7 +20885,7 @@
       if(trimmed === ''){
         localStorage.removeItem(EXAM_DATE_KEY);
       }else if(/^\d{4}-\d{2}-\d{2}$/.test(trimmed) && !isNaN(new Date(trimmed + 'T00:00:00').getTime())){
-        localStorage.setItem(EXAM_DATE_KEY, trimmed);
+        lsSet(EXAM_DATE_KEY, trimmed);
       }else{
         alert('Please use the format YYYY-MM-DD, e.g. 2026-11-15.');
         return;
@@ -20840,7 +20910,7 @@
       daysPerWeek: Math.max(1, Math.min(7, parseInt(document.getElementById('planner-days-per-week').value, 10) || 5)),
       minutesPerDay: Math.max(10, parseInt(document.getElementById('planner-minutes-per-day').value, 10) || 45)
     };
-    localStorage.setItem(STUDY_PLANNER_KEY, JSON.stringify(settings));
+    lsSet(STUDY_PLANNER_KEY, JSON.stringify(settings));
     return settings;
   }
 
@@ -21110,7 +21180,7 @@
     }catch(e){ reconOpsState = {}; }
   })();
   function persistReconOps(){
-    localStorage.setItem(RECONOPS_KEY, JSON.stringify(reconOpsState));
+    lsSet(RECONOPS_KEY, JSON.stringify(reconOpsState));
   }
   function reconOpsPhaseState(scenarioId, phaseId){
     if(!reconOpsState[scenarioId]) reconOpsState[scenarioId] = {};
@@ -21497,7 +21567,7 @@
     }catch(e){ jobSimState = {}; }
   })();
   function persistJobSim(){
-    localStorage.setItem(JOBSIM_KEY, JSON.stringify(jobSimState));
+    lsSet(JOBSIM_KEY, JSON.stringify(jobSimState));
   }
   function jobSimPhaseState(scenarioId, phaseId){
     if(!jobSimState[scenarioId]) jobSimState[scenarioId] = {};
@@ -22494,7 +22564,7 @@
     catch(e){ careerPrepChecklistState = {}; }
   })();
   function persistCareerPrepChecklist(){
-    localStorage.setItem(CAREERPREP_CHECKLIST_KEY, JSON.stringify(careerPrepChecklistState));
+    lsSet(CAREERPREP_CHECKLIST_KEY, JSON.stringify(careerPrepChecklistState));
   }
 
   const JOB_READINESS_CHECKLIST = [
