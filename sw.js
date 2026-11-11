@@ -4,7 +4,7 @@
 // re-deployed. This forces the service worker to fetch and cache the new version instead
 // of silently continuing to serve a stale cached copy. Without bumping this, offline users
 // would keep seeing old content indefinitely even after re-uploading a newer index.html.
-const CACHE_VERSION = 'v31';
+const CACHE_VERSION = 'v32';
 const CACHE_NAME = `cybersec-notes-${CACHE_VERSION}`;
 
 // Everything needed for the app to run fully offline: the app shell itself plus the
