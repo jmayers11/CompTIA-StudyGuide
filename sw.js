@@ -1,10 +1,9 @@
 // Service worker for CyberSec Notes — enables full offline use after the first online load.
 //
-// IMPORTANT MAINTENANCE NOTE: bump CACHE_VERSION every time index.html changes and is
-// re-deployed. This forces the service worker to fetch and cache the new version instead
-// of silently continuing to serve a stale cached copy. Without bumping this, offline users
-// would keep seeing old content indefinitely even after re-uploading a newer index.html.
-const CACHE_VERSION = 'v34';
+// MAINTENANCE NOTE: index.html is fetched network-first (see the fetch handler below), so page
+// updates appear on the next load without any change here. Bump CACHE_VERSION only when sw.js
+// itself or the list of cached library URLs changes, so old caches are cleared.
+const CACHE_VERSION = 'v35';
 const CACHE_NAME = `cybersec-notes-${CACHE_VERSION}`;
 
 // Everything needed for the app to run fully offline: the app shell itself plus the
@@ -20,7 +19,9 @@ const URLS_TO_CACHE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(URLS_TO_CACHE))
+      // cache:'reload' bypasses the browser's HTTP cache, so a new service worker never
+      // pre-caches a stale copy of index.html left over from the previous deploy.
+      .then((cache) => cache.addAll(URLS_TO_CACHE.map((url) => new Request(url, { cache: 'reload' }))))
       .then(() => self.skipWaiting())
   );
 });
@@ -37,11 +38,28 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Cache-first with background network update ("stale-while-revalidate"):
-// serves instantly from cache (works offline), while quietly refreshing the
-// cache in the background whenever a connection is available.
+// The app page itself is fetched network-first, so an updated index.html shows up on the
+// very next load instead of one load later; the cached copy is used only when offline.
+// Everything else (the CDN libraries) stays cache-first with a background refresh.
 self.addEventListener('fetch', (event) => {
   if(event.request.method !== 'GET') return;
+
+  const url = new URL(event.request.url);
+  const isAppPage = event.request.mode === 'navigate' ||
+    (url.origin === self.location.origin && (url.pathname.endsWith('/') || url.pathname.endsWith('/index.html')));
+
+  if(isAppPage){
+    event.respondWith(
+      fetch(event.request, { cache: 'no-cache' }).then((networkResponse) => {
+        if(networkResponse && networkResponse.status === 200){
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+        }
+        return networkResponse;
+      }).catch(() => caches.match(event.request).then((cached) => cached || caches.match('./index.html')))
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
@@ -51,7 +69,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
         }
         return networkResponse;
-      }).catch(() => cachedResponse); // offline: fall back to cache if the network fetch fails
+      }).catch(() => cachedResponse);
 
       return cachedResponse || networkFetch;
     })
