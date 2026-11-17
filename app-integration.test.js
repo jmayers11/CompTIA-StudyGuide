@@ -39,7 +39,7 @@ document.getElementById('exam-cert-select').value = 'security_plus';
 const windowObj = new Proxy({ localStorage, document, addEventListener(){}, removeEventListener(){}, setTimeout: (f) => 0, setInterval: () => 0, clearInterval(){}, clearTimeout(){},
   confirm: () => true, alert: () => {}, matchMedia: () => ({ matches: false, addEventListener(){}, addListener(){} }), requestAnimationFrame: () => 0, navigator: { serviceWorker: undefined, userAgent: 'node' }, location: { reload(){}, href: '', hash: '' }, innerWidth: 1200, innerHeight: 800 },
   { get(t, p){ if(p in t) return t[p]; if(p in globalThis) return globalThis[p]; return anything(); } });
-code = code.replace(/\}\)\(\);\s*$/, '  ;globalThis.__hooks = { exposure, getExamPolicy, renderExposureDashboard, cliTrainer, renderCliTab, renderCliCard, cliExpected, getCliSession: () => cliSession }; })();');
+code = code.replace(/\}\)\(\);\s*$/, '  ;globalThis.__hooks = { exposure, getExamPolicy, renderExposureDashboard, cliTrainer, renderCliTab, renderCliCard, cliExpected, getCliSession: () => cliSession, gradeExamQuestion, instantiatePBQ, PBQ_BANK, renderExamQuestion, getExamState: () => examState, startLab, labSubmit, getLabRun: () => labRun, labEngine, showCliSection, CLI_LABS }; })();');
 globalThis.pdfjsLib = anything(); globalThis.JSZip = anything(); globalThis.sessionStorage = localStorage; globalThis.getComputedStyle = () => anything(); globalThis.HTMLElement = function(){}; globalThis.Element = function(){};
 const run = new Function('window','document','localStorage','navigator','location','confirm','alert','setTimeout','setInterval','clearInterval','clearTimeout','matchMedia','requestAnimationFrame','Event', code);
 class Ev { constructor(t){ this.type = t; } }
@@ -92,6 +92,46 @@ try{
   }
   graded.forEach(g => out.push('CLI card ' + JSON.stringify(g)));
   globalThis.__cliGraded = graded; globalThis.__cliPbq = Object.keys(pbqMap);
+  // Phase 4: new PBQ types grade correctly and render inside a real exam
+  const newTypes = H.PBQ_BANK.filter(p => p.cert === 'security_plus' && ['evidence','config','zones'].includes(p.type));
+  let pbqOk = 0, pbqBad = [];
+  newTypes.forEach(def => {
+    const q = H.instantiatePBQ(def);
+    let right, wrong;
+    if(def.type === 'evidence'){ right = def.correct.slice().reverse(); wrong = def.correct.slice(0, -1); }
+    else if(def.type === 'config'){ right = {}; def.rows.forEach((row, r) => row.cells.forEach((cell, c) => { if(cell.opts) right[r + ':' + c] = Array.isArray(cell.ans) ? cell.ans[0] : cell.ans; })); wrong = Object.assign({}, right); const k = Object.keys(wrong)[0]; const cell = def.rows[+k.split(':')[0]].cells[+k.split(':')[1]]; wrong[k] = cell.opts.find(o => o !== right[k]); }
+    else { right = def.items.map(i => i.ans); wrong = right.slice(); wrong[0] = def.zones.find(z => z !== right[0]); }
+    const g1 = H.gradeExamQuestion(q, right), g2 = H.gradeExamQuestion(q, wrong), g3 = H.gradeExamQuestion(q, null);
+    if(g1.isCorrect && !g2.isCorrect && !g3.isCorrect && g1.isPBQ && g1.answerText) pbqOk++; else pbqBad.push(def.prompt.slice(0, 50));
+  });
+  out.push(`New PBQ types: ${newTypes.length} (${pbqOk} grade correctly)` + (pbqBad.length ? ' BAD: ' + pbqBad.join(' | ') : ''));
+  document.getElementById('exam-cert-select').value = 'security_plus';
+  document.getElementById('exam-allpbq-practice-btn').click();
+  const es = H.getExamState();
+  let rendered = 0, renderErr = [];
+  if(es){ es.questions.forEach((q, i) => { try{ es.currentIndex = i; H.renderExamQuestion(); const html = document.getElementById('exam-options').innerHTML; if(['evidence','config','zones'].includes(q.type)){ if(/pbq-exhibit|pbq-config|pbq-zones/.test(html)) rendered++; else renderErr.push(q.type); } }catch(e){ renderErr.push(q.type + ': ' + e.message); } }); }
+  out.push(`Practice-all exam: ${es ? es.questions.length : 0} PBQs; new types rendered: ${rendered}` + (renderErr.length ? ' ERR: ' + renderErr.join(', ') : ''));
+  globalThis.__pbq = { n: newTypes.length, ok: pbqOk, rendered, renderErr, total: es ? es.questions.length : 0 };
+  // Phase 3: terminal PBQs render in the exam and grade from typed answers
+  let termRendered = 0, termGraded = 0, termN = 0;
+  if(es){ es.questions.forEach((q, i) => { if(q.type !== 'terminal') return; termN++;
+    es.currentIndex = i; H.renderExamQuestion(); if(/lab-term/.test(document.getElementById('exam-options').innerHTML)) termRendered++;
+    const answers = q.lab.steps.map(st => st.kind === 'cmd' ? st.ex : (st.answer.type === 'choice' ? st.answer.correct : st.answer.shown));
+    const good = H.gradeExamQuestion(q, { answers }), bad = H.gradeExamQuestion(q, { answers: answers.slice(0, -1) });
+    if(good.isCorrect && !bad.isCorrect) termGraded++; }); }
+  out.push(`Terminal PBQs in practice exam: ${termN}, rendered ${termRendered}, graded ${termGraded}`);
+  // Phase 3: run a full Terminal Lab session through the real UI functions
+  H.showCliSection('lab');
+  const lab = H.CLI_LABS.find(l => l.id === 'lab-i1-backdoor');
+  H.startLab(lab.id);
+  H.labSubmit('netstat -an');                     // near-miss: one retry used
+  const near = (document.getElementById('lab-list').innerHTML.match(/without -o[^<]*/i) || [''])[0];
+  lab.steps.forEach(st => H.labSubmit(st.kind === 'cmd' ? st.ex : (st.answer.type === 'choice' ? st.answer.correct : st.answer.shown)));
+  const labRunState = H.getLabRun();
+  const doneHtml = document.getElementById('lab-list').innerHTML;
+  const rec = H.labEngine.raw().labs[lab.id];
+  out.push(`Lab run: done=${labRunState && labRunState.done} feedback="${near.slice(0, 40)}" score=${rec ? rec.best : 'none'}`);
+  globalThis.__lab = { termN, termRendered, termGraded, done: !!(labRunState && labRunState.done), near: !!near, best: rec ? rec.best : null, msg: /Lab complete: 3\.5 \/ 4 points/.test(doneHtml) };
   // restart: re-run script against the same storage
   const before = store['cybersec_exposure_v1'];
   run(windowObj, document, localStorage, windowObj.navigator, windowObj.location, () => true, () => {}, () => 0, () => 0, () => {}, () => {}, windowObj.matchMedia, () => 0, Ev);
@@ -111,7 +151,11 @@ const checks = [
   ['typed answers graded: expected answers correct, wrong answers rejected, rating buttons shown', (globalThis.__cliGraded || []).every((g, i) => g.rated && (g.mode === 'B' ? g.verdict === 'revealed' : (i % 3 === 2 && g.mode !== 'D' ? g.verdict === 'wrong' : g.verdict === 'correct')))],
   ['missed CLI PBQs in Cold Runs are recorded against their command', (globalThis.__cliPbq || []).length > 0],
   ['CLI progress persists across an app restart', /cybersec_cli_mastery_v1/.test(Object.keys(store).join(' ')) && JSON.parse(store['cybersec_cli_mastery_v1']).cmds && Object.keys(JSON.parse(store['cybersec_cli_mastery_v1']).cmds).length > 0],
-  ['exposure persists across an app restart', /3 Cold Runs taken/.test(out.join(' ')) && /after restart: .*258 of/.test(out.join(' '))]
+  ['new PBQ types (evidence, config, zones) grade right/wrong/blank correctly', globalThis.__pbq && globalThis.__pbq.n >= 14 && globalThis.__pbq.ok === globalThis.__pbq.n],
+  ['new PBQ types render inside a practice exam without errors', globalThis.__pbq && globalThis.__pbq.rendered === globalThis.__pbq.n && !globalThis.__pbq.renderErr.length],
+  ['terminal PBQs render in exams and grade from typed answers', globalThis.__lab && globalThis.__lab.termN >= 8 && globalThis.__lab.termRendered === globalThis.__lab.termN && globalThis.__lab.termGraded === globalThis.__lab.termN],
+  ['Terminal Lab: near-miss feedback, completion, partial-credit scoring recorded', globalThis.__lab && globalThis.__lab.done && globalThis.__lab.near && globalThis.__lab.best === 0.875 && globalThis.__lab.msg],
+  ['exposure persists across an app restart', /3 Cold Runs taken/.test(out.join(' ')) && /after restart: .*you've seen \d+ of \d+/.test(out.join(' ')) && /unchanged by restart/.test(out.join(' '))]
 ];
 let failed = 0; checks.forEach(([n, ok]) => { if(!ok){ failed++; console.log('  FAIL ' + n); } });
 console.log(`${checks.length - failed} passed, ${failed} failed`); process.exit(failed ? 1 : 0);

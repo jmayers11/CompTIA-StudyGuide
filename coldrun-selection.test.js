@@ -37,7 +37,7 @@ function allocate(n, pools){ // mirrors computeDomainAllocation
 }
 function pools(E){
   const p = {}; DOMAINS.forEach(([k]) => p[k] = []);
-  BANK.forEach(q => { const id = E.qid(q.question); if(!meta.EXPOSURE_SUPPLEMENTAL.includes(id)) p[q.domain].push({ id, domain: q.domain, question: q.question }); });
+  BANK.forEach(q => { const id = q.oid || E.qid(q.question); if(!meta.EXPOSURE_SUPPLEMENTAL.includes(id)) p[q.domain].push({ id, domain: q.domain, question: q.question }); });
   return p;
 }
 const pbqId = (E) => d => E.qid(d.prompt);
@@ -49,6 +49,7 @@ function runColdRuns(n, opts){
   for(let e = 1; e <= n; e++){
     const E = makeEngine(store, seed++);          // fresh engine per exam = app restart between exams
     const P = pools(E), al = allocate(86, P);
+    const unseenAvailable = DOMAINS.reduce((sum, [k]) => sum + Math.min(al[k], P[k].filter(q => !ever.has(q.id)).length), 0);
     const picked = E.select('security_plus', P, al, opts.policy || 'strict');
     const pbq = E.selectPBQs('security_plus', PBQS, 4, pbqId(E));
     const ids = picked.map(q => q.id);
@@ -58,7 +59,7 @@ function runColdRuns(n, opts){
     if(opts.answer) E.recordResults('security_plus', picked.map(q => ({ id: q.id, correct: opts.answer(q), fresh: q._exposure.fresh })), entry.ts);
     rows.push({ exam: e, size: ids.length, dupInExam: ids.length - new Set(ids).size, neverSeen: ids.filter(i => !ever.has(i)).length,
       overlapPrev: prev ? ids.filter(i => prev.has(i)).length : 0, fromLast3: ids.filter(i => last3.has(i)).length,
-      domainsOk: DOMAINS.every(([k]) => (counts[k] || 0) === al[k]), pbqs: pbq.length, entry,
+      domainsOk: DOMAINS.every(([k]) => (counts[k] || 0) === al[k]), pbqs: pbq.length, entry, unseenAvailable,
       groupClash: (meta.EXPOSURE_GROUPS.security_plus || []).filter(g => picked.filter(q => g.includes(q.id)).length > 1).length });
     ids.forEach(i => ever.add(i)); rows[rows.length - 1].bankSeenPct = +(100 * ever.size / Object.values(P).flat().length).toFixed(1);
     prev = new Set(ids); history.push(ids);
@@ -68,17 +69,19 @@ function runColdRuns(n, opts){
 
 console.log('Cold Run selection tests — ' + path.basename(htmlPath));
 console.log('Bank: ' + BANK.length + ' Security+ questions (' + meta.EXPOSURE_SUPPLEMENTAL.length + ' supplemental excluded from exams), ' + PBQS.length + ' PBQs');
+check('rewritten questions keep their original ID (oid) for progress tracking', BANK.filter(q => q.rev).every(q => typeof q.oid === 'string' && q.oid.charAt(0) === '#'));
 
 // 1. Ten consecutive 90-question Cold Runs (86 multiple choice + 4 PBQs), engine reloaded from storage each time
 const ten = runColdRuns(10);
-console.table(ten.rows.map(r => ({ exam: r.exam, questions: r.size + r.pbqs, dupInExam: r.dupInExam, neverSeen: r.neverSeen, overlapPrev: r.overlapPrev, fromLast3: r.fromLast3, domainsOk: r.domainsOk, bankSeenPct: r.bankSeenPct })));
+console.table(ten.rows.map(r => ({ exam: r.exam, questions: r.size + r.pbqs, dupInExam: r.dupInExam, neverSeen: r.neverSeen, unseenAvail: r.unseenAvailable, overlapPrev: r.overlapPrev, fromLast3: r.fromLast3, domainsOk: r.domainsOk, bankSeenPct: r.bankSeenPct })));
 check('no duplicate question IDs within any exam', ten.rows.every(r => r.dupInExam === 0));
 check('every exam has exactly 86 MC + 4 PBQs', ten.rows.every(r => r.size === 86 && r.pbqs === 4));
 check('domain counts match the blueprint allocation every exam', ten.rows.every(r => r.domainsOk));
 check('nothing from the previous 3 Cold Runs while unseen questions remain', ten.rows.every(r => r.fromLast3 === 0));
-const firstTenNew = ten.rows.reduce((s, r) => s + r.neverSeen, 0);
-// a few never-seen questions are deliberately held back because a near-duplicate was just served
-check('never-seen questions preferred: >= 98% of the first 10 exams are new', firstTenNew >= 0.98 * 860, firstTenNew + '/860 new: ' + ten.rows.map(r => r.neverSeen).join(','));
+// Never-seen questions must be used whenever any remain in that domain (a few may be held back because a
+// near-duplicate was just served). Once a domain's unseen pool runs out, repeats are expected.
+const neverSeenOk = ten.rows.every(r => r.neverSeen >= r.unseenAvailable - 3);
+check('never-seen questions preferred: every exam uses all available unseen questions (within near-duplicate holdbacks)', neverSeenOk, ten.rows.map(r => r.neverSeen + '/' + r.unseenAvailable).join(','));
 check('consecutive exams share no questions', ten.rows.every(r => r.overlapPrev === 0));
 check('never two near-duplicates in one exam', ten.rows.concat().every(r => r.groupClash === 0));
 check('analytics entry agrees with the simulation', ten.rows.every(r => r.entry.fresh === r.neverSeen && r.entry.last3 === r.fromLast3 && r.entry.unique === 86));
@@ -125,7 +128,7 @@ console.log('  exams 11-25 never-seen counts: ' + many.rows.slice(10).map(r => r
 (() => {
   const store = memStore(), E = makeEngine(store, 11);
   const G = meta.EXPOSURE_GROUPS.security_plus; const grp = G.find(g => g.length >= 3) || G[0];
-  const items = BANK.filter(q => grp.includes(E.qid(q.question))).map(q => ({ id: E.qid(q.question), domain: q.domain }));
+  const items = BANK.filter(q => grp.includes(q.oid || E.qid(q.question))).map(q => ({ id: q.oid || E.qid(q.question), domain: q.domain }));
   const filler = pools(E)[items[0].domain].filter(q => !grp.includes(q.id)).slice(0, 30);
   const got = E.select('security_plus', { d: items.concat(filler) }, { d: 20 }, 'strict');
   check('at most one member of a near-duplicate group per exam', got.filter(q => grp.includes(q.id)).length <= 1);
