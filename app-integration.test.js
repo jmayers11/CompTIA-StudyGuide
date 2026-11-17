@@ -39,7 +39,7 @@ document.getElementById('exam-cert-select').value = 'security_plus';
 const windowObj = new Proxy({ localStorage, document, addEventListener(){}, removeEventListener(){}, setTimeout: (f) => 0, setInterval: () => 0, clearInterval(){}, clearTimeout(){},
   confirm: () => true, alert: () => {}, matchMedia: () => ({ matches: false, addEventListener(){}, addListener(){} }), requestAnimationFrame: () => 0, navigator: { serviceWorker: undefined, userAgent: 'node' }, location: { reload(){}, href: '', hash: '' }, innerWidth: 1200, innerHeight: 800 },
   { get(t, p){ if(p in t) return t[p]; if(p in globalThis) return globalThis[p]; return anything(); } });
-code = code.replace(/\}\)\(\);\s*$/, '  ;globalThis.__hooks = { exposure, getExamPolicy, renderExposureDashboard, cliTrainer, renderCliTab, renderCliCard, cliExpected, getCliSession: () => cliSession, gradeExamQuestion, instantiatePBQ, PBQ_BANK, renderExamQuestion, getExamState: () => examState, startLab, labSubmit, getLabRun: () => labRun, labEngine, showCliSection, CLI_LABS }; })();');
+code = code.replace(/\}\)\(\);\s*$/, '  ;globalThis.__hooks = { exposure, getExamPolicy, renderExposureDashboard, cliTrainer, renderCliTab, renderCliCard, cliExpected, getCliSession: () => cliSession, gradeExamQuestion, instantiatePBQ, PBQ_BANK, renderExamQuestion, getExamState: () => examState, startLab, labSubmit, getLabRun: () => labRun, labEngine, showCliSection, CLI_LABS, renderReadiness, computeReadiness }; })();');
 globalThis.pdfjsLib = anything(); globalThis.JSZip = anything(); globalThis.sessionStorage = localStorage; globalThis.getComputedStyle = () => anything(); globalThis.HTMLElement = function(){}; globalThis.Element = function(){};
 const run = new Function('window','document','localStorage','navigator','location','confirm','alert','setTimeout','setInterval','clearInterval','clearTimeout','matchMedia','requestAnimationFrame','Event', code);
 class Ev { constructor(t){ this.type = t; } }
@@ -62,6 +62,14 @@ try{
   globalThis.__hooks && globalThis.__hooks.renderExposureDashboard();
   const dash = document.getElementById('exam-exposure-dashboard').innerHTML.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   out.push('dashboard: ' + dash.slice(0, 330));
+  // Phase 5: score labeling and readiness dashboard after three Cold Runs
+  const sumHtml = document.getElementById('exam-summary').innerHTML;
+  const attempts = JSON.parse(store['cybersec_progress_v1'] || '{}').examAttempts || [];
+  globalThis.__hooks.renderReadiness();
+  const rd = document.getElementById('readiness-content').innerHTML.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  out.push('readiness: ' + rd.slice(0, 400));
+  globalThis.__ready = { labeled: /UNOFFICIAL ESTIMATE \d+ \/ 900 · OFFICIAL PASSING 750/.test(sumHtml) && !/>SCORE \d/.test(sumHtml) && /not an official CompTIA score/.test(sumHtml),
+    attempts: attempts.filter(a => a.cert === 'security_plus'), rd };
   document.getElementById('exam-cert-select').value = 'network_plus';
   document.getElementById('exam-coldrun-btn').click(); const np = document.getElementById('exam-progress-text').textContent; document.getElementById('exam-submit-btn').click();
   out.push(`Net+ Cold Run: "${np}" -> ${JSON.stringify(fresh())}`);
@@ -155,6 +163,9 @@ const checks = [
   ['new PBQ types render inside a practice exam without errors', globalThis.__pbq && globalThis.__pbq.rendered === globalThis.__pbq.n && !globalThis.__pbq.renderErr.length],
   ['terminal PBQs render in exams and grade from typed answers', globalThis.__lab && globalThis.__lab.termN >= 8 && globalThis.__lab.termRendered === globalThis.__lab.termN && globalThis.__lab.termGraded === globalThis.__lab.termN],
   ['Terminal Lab: near-miss feedback, completion, partial-credit scoring recorded', globalThis.__lab && globalThis.__lab.done && globalThis.__lab.near && globalThis.__lab.best === 0.875 && globalThis.__lab.msg],
+  ['exam results label the 100-900 score as an unofficial estimate next to the official 750', globalThis.__ready && globalThis.__ready.labeled],
+  ['exam attempts store Cold Run, fresh/repeat and PBQ counts', globalThis.__ready && globalThis.__ready.attempts.length === 3 && globalThis.__ready.attempts.every(a => a.coldRun === true && a.freshTotal === 86 && a.freshTotal + a.repeatTotal + a.pbqTotal === 90 && a.pbqTotal === 4 && typeof a.weightedPct === 'number')],
+  ['readiness tab renders disclaimer, confidence from 258 fresh questions, trend and domains', globalThis.__ready && /Unofficial practice estimate/.test(globalThis.__ready.rd) && /across 258 fresh questions/.test(globalThis.__ready.rd) && /official passing score \(CompTIA\)/.test(globalThis.__ready.rd) && /Cold Run trend/.test(globalThis.__ready.rd) && /5\.0 Security Program Management/.test(globalThis.__ready.rd) && /core commands mastered/.test(globalThis.__ready.rd)],
   ['exposure persists across an app restart', /3 Cold Runs taken/.test(out.join(' ')) && /after restart: .*you've seen \d+ of \d+/.test(out.join(' ')) && /unchanged by restart/.test(out.join(' '))]
 ];
 let failed = 0; checks.forEach(([n, ok]) => { if(!ok){ failed++; console.log('  FAIL ' + n); } });

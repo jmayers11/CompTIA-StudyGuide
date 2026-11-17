@@ -14,7 +14,7 @@ Upload a new `index.html` to the repo root. `sw.js` loads `index.html` network-f
 | 2 | Security+ Command-Line Mastery flashcards with spaced repetition | Done (2026-11-17) |
 | 3 | Interactive command-line PBQ lab | Done (2026-11-17) |
 | 4 | Question-bank quality: rewrites, new scenario questions, new PBQ types | Done (2026-11-17) |
-| 5 | Readiness analytics and interface refinements | Planned |
+| 5 | Readiness analytics and score labeling | Done (2026-11-17) |
 
 ### Phase 1: why Cold Run repeated questions
 The old selector kept a rolling list of the last 250 questions served (about 3 exams) and skipped those. Anything older came back at the same odds as never-seen questions. That list also filled up with short practice exams and abandoned attempts, a domain fell back to its whole pool when it ran low, and PBQs were drawn with no history. In a simulation, the 10th consecutive Cold Run held only about 42 new questions out of 86.
@@ -164,7 +164,7 @@ The Security+ bank now holds 1,092 questions, 1,001 of them eligible for exams. 
 - **Scope:** 523 more questions rewritten as original scenarios (485 + 38 in two passes). 139 identification stems were reworded to BEST/MOST form, and about 140 answer options were rebalanced so that neither length nor a repeated keyword gives the answer away.
 - **IDs:** every changed question keeps its original ID (`oid`), so exposure history and progress carry over.
 - **Supplemental set:** 75 more trivia items moved there (268 in total), including named-malware history, HTTP/FTP/TCP internals, ISO and NIST trivia, and duplicated drills.
-- **Exam pool:** 824 questions.
+- **Exam pool:** 824 questions (871 after the batch below).
 
 All measures below use the same scripts on both sets. The Messer figures are aggregate statistics only. No Messer content is in this app.
 
@@ -182,6 +182,49 @@ All measures below use the same scripts on both sets. The Messer figures are agg
 The keyword heuristic undercounts this bank's scenarios. It only recognizes particular actor and verb words, and many stems here open with a situation using other words ("Thieves break a server room door…"). Messer's stems are still about 9 words longer on average.
 
 **Effect on Cold Run:** the smaller, cleaner pool covers about 9 full Cold Runs with no repeats. The General Security Concepts domain (103 questions, 11 per exam) runs out first. The selection test now checks that every exam uses all unseen questions still available. Pass: 26/26.
+
+### New questions: General Security Concepts batch
+- **47 original application questions** (`src: original-2026-11b`): 35 General Security Concepts, 5 Program Management, 3 Security Operations, 2 Threats, 2 Architecture. They cover change management, PKI and certificates, cryptography choices, zero trust, deception, physical controls and gap analysis.
+- **Exam pool:** 871 questions (General 138, Threats 187, Architecture 167, Operations 203, Management 176).
+- **This batch's measures:** average stem 30 words, correct answer is the single longest option 4.3%, length ratio 0.97, stem keyword giveaway 0%.
+- **Whole pool now:** single longest 11.3%, length ratio 1.04, giveaway 3.1%, BEST/FIRST/NEXT/MOST 55%.
+- **Cold Run runway:** General is no longer the first domain to run out. Security Operations (203 questions, about 24 per exam) now runs out first, after about 8 fully fresh Cold Runs.
+
+### Phase 5: readiness analytics
+- **New 🎯 Readiness tab** (Progress group). It shows:
+  - Raw %, blueprint-weighted % (domains weighted like the real exam), the unofficial 100–900 estimate, and the official passing score, side by side.
+  - A confidence level (On track, Borderline, Not yet, or Not enough data), judged **only from questions you had never seen**. It uses the last 5 full exams and needs at least 60 fresh questions. The level comes from a 90% range around fresh accuracy: On track means the whole range clears the passing line, and Borderline means the middle of the range does but the low end doesn't.
+  - Fresh vs repeated accuracy, with a warning when repeated questions score more than 10 points higher. It also shows accuracy on questions you had missed before, PBQ accuracy, and the Cold Run trend chart.
+  - Domain bars against the passing line, with the weakest domain marked, plus command-line mastery and Terminal Lab progress.
+  - A table of recent full exams.
+- **Score labeling:** exam results now say "UNOFFICIAL ESTIMATE … / 900 · OFFICIAL PASSING 750". A note under the score explains that the figure is linear (100 + raw% × 800) and is not an official CompTIA score. On this scale, 750 equals 81.25% correct. The real exam's raw cut score is not published.
+- **Data:** each exam attempt now also stores Cold Run status, fresh/repeat counts, PBQ counts, previously-missed counts and the weighted %. Older attempts still work. If they have no fresh data, the confidence level uses the Cold Run exposure history. Everything is in the existing progress key, so Backup/Restore already covers it.
+
+### Phase 5: test results
+- `tests/readiness.test.js` (new, 20 checks) covers the score scale, each confidence level, repeated questions not inflating confidence, blueprint weighting, drill and other-cert filtering, trend, PBQ and previously-missed totals, legacy migration, and wording that never claims an official result.
+- `tests/app-integration.test.js` (16 checks, 3 new) confirms that results show the unofficial label next to 750, that attempts store the new fields, and that the Readiness tab renders from 3 real Cold Runs (258 fresh questions).
+- Full regression: coldrun-selection 26/26, cli-mastery 28/28, cli-lab 14/14, readiness 20/20, app-integration 16/16.
+
+### 10 fixed practice exams
+- **Choosing an exam:** before a Security+ Cold Run, a **Cold Run exam** menu lets you pick either a **Fresh exam** or **Practice Exam 1–10**. A Fresh exam is a new mix from the whole bank, which contains every practice exam's questions plus extras, using the repetition policy.
+- **What each practice exam contains:**
+  - 86 multiple-choice questions, split by domain like SY0-701: General 10, Threats 19, Architecture 16, Operations 24, Management 17.
+  - 4 exam-style PBQs, at least one of them command line (CLI or terminal).
+  - No question or PBQ appears in more than one practice exam, and none contains two near-duplicate questions.
+  - Objectives are spread evenly across the exams, so their difficulty profiles are close (average stem 27–29 words, 74–87% scenario stems).
+- **Same exam every time:** questions keep their set but are shown in a new order, with options reshuffled.
+- **Status shown before you start:** times taken, first, best and latest score, and how many of the exam's questions you have already met in other exams. Those count as repeats, so readiness confidence still uses only never-seen questions.
+- **Tracking:**
+  - Results are titled "Practice Exam N complete · attempt K".
+  - The Readiness tab has a practice-exam table showing attempts, first attempt, best, latest and questions already seen.
+  - Each practice exam also counts as a Cold Run.
+- **Bank changes:** if a later bank change removes a question, the exam fills that slot from the same domain, never-seen first.
+- **New questions:** 51 original application questions (45 Security Operations, 6 Threats, `src: original-2026-11c`), so 10 exams with no overlap fit the blueprint.
+  - The exam pool is now 922: General 138, Threats 193, Architecture 167, Operations 248, Management 176.
+  - 62 pool questions are in no practice exam and appear only in Fresh exams.
+  - Three new drafts were dropped as too close to existing questions.
+- **Builder:** the exam lists are generated offline by a builder script and stored as question IDs in a `PRACTICE_FORMS` data block in `index.html`.
+- **Tests:** `tests/practice-forms.test.js` (new, 21 checks) checks the blueprint split, no overlap, valid IDs, no near-duplicates and the PBQ mix. Then it takes Practice Exam 3 twice, a Fresh exam and Practice Exam 4 through the real buttons. Full regression: 26 + 28 + 14 + 20 + 16 + 21, all passing.
 
 ### Notes
 - Practice scores are not an official CompTIA prediction. CompTIA's scaled scoring is proprietary.

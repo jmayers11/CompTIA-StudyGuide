@@ -3639,6 +3639,10 @@
   .exposure-stat-value{ font-size:18px; font-weight:700; }
   .exposure-stat-label{ font-size:11px; color:var(--muted); line-height:1.3; }
   .exposure-table-wrap{ overflow-x:auto; margin-top:12px; }
+  .readiness-disclaimer{ border:1px solid var(--border); border-left:4px solid #ffb454; border-radius:8px; padding:10px 12px; font-size:12px; color:var(--muted); margin:10px 0 12px; line-height:1.45; }
+  .readiness-hero{ border:2px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:6px; }
+  .readiness-level{ font-size:22px; font-weight:800; }
+  .readiness-sub{ font-size:13px; color:var(--muted); margin-top:4px; line-height:1.45; }
   .exposure-table{ width:100%; border-collapse:collapse; font-size:12px; }
   .exposure-table th, .exposure-table td{ text-align:left; padding:5px 6px; border-bottom:1px solid var(--border); white-space:nowrap; }
   .exposure-table th{ color:var(--muted); font-weight:600; }
@@ -3828,6 +3832,7 @@
       <div class="tab-group-label">Progress</div>
       <div class="tab-group">
         <button class="tab-btn" data-tab="dashboard" title="XP, streaks, domain mastery (including a radar chart), activity heatmap, and score trends">📊 Dashboard</button>
+        <button class="tab-btn" data-tab="readiness" title="Exam readiness: raw vs weighted vs unofficial 100–900 estimate, fresh-question confidence, Cold Run trend, domains, PBQs and command line">🎯 Readiness</button>
       </div>
     </div>
   </div>
@@ -3864,6 +3869,10 @@
     <button id="dashboard-refresh-btn" class="btn" style="width:100%; margin-top:14px;">🔄 Refresh</button>
   </div>
 
+  <div id="readiness-tab" style="display:none;">
+    <div class="qz-pool-info" style="margin-top:14px;">How ready you look, judged mainly by questions you had never seen before. All scores here are unofficial practice estimates.</div>
+    <button id="readiness-refresh-btn" class="btn" style="width:100%; margin-top:14px;">🔄 Refresh</button>
+  </div>
   <div id="climastery-tab" style="display:none;">
     <div class="qz-pool-info" style="margin-top:14px;">Learn the commands Security+ PBQs expect: recognize them, recall them, type them and read their output. Typed answers are checked against accepted variants (flag order, sudo, Windows case); nothing is executed.</div>
     <div class="qz-pool-info" style="margin-top:10px;"><strong>Modes</strong><br>A · description → command<br>B · command → what it does<br>C · scenario → command<br>D · fill in the missing option<br>E · simulated terminal task</div>
@@ -4172,6 +4181,11 @@
             <div id="exam-exposure-dashboard"></div>
           </details>
           <button id="exam-start-btn" class="btn primary" style="width:100%; margin-top:14px;">Start Exam</button>
+          <div id="exam-form-row" style="display:none; margin-top:14px;">
+            <div class="qz-config-label" style="margin-top:0;">Cold Run exam</div>
+            <select id="exam-coldrun-form"><option value="fresh">Fresh exam: a new mix from the whole bank (never-seen first)</option></select>
+            <div id="exam-form-note" class="qz-pool-info" style="margin-top:6px;"></div>
+          </div>
           <button type="button" id="exam-coldrun-btn" class="btn" style="width:100%; margin-top:10px; font-size:12px; padding:8px 10px; border:1px solid var(--accent);">🎯 Cold Run — Full-Length Mock Exam (official question count &amp; time limit, blueprint-weighted, one uninterrupted timed pass)</button>
         </div>
       </div>
@@ -4313,6 +4327,10 @@
 
     <div id="careerprep-panel" style="display:none;">
       <div id="careerprep-content"></div>
+    </div>
+
+    <div id="readiness-panel" style="display:none;">
+      <div id="readiness-content"></div>
     </div>
 
     <div id="climastery-panel" style="display:none;">
@@ -4597,6 +4615,7 @@
       if(coldRun) r.runs++;
       const entry = { run: coldRun ? r.runs : null, coldRun, ts: now, n: ids.length, pbq: (pbqIds || []).length,
         fresh, repeated, last3, unique: new Set(ids).size, policy: (meta && meta.policy) || 'strict' };
+      if(meta && meta.form) entry.form = meta.form;
       r.hist.push(entry); if(r.hist.length > HIST_MAX) r.hist = r.hist.slice(-HIST_MAX);
       save();
       return entry;
@@ -4633,6 +4652,84 @@
     return { qid, migrateLegacy, standing, select, selectPBQs, recordServed, recordResults, summary, reset, raw, RECENT };
   }
   /* EXPOSURE_ENGINE_END */
+  /* READINESS_START */
+  /* ---------- Exam readiness analytics (pure) ----------
+     Builds the Readiness dashboard's numbers from saved exam attempts, exposure history and
+     the command-line trackers. The 100–900 figure is an UNOFFICIAL linear estimate
+     (100 + raw% × 800). CompTIA's scaled scoring is proprietary, so it is never presented
+     as a prediction. Confidence is driven by accuracy on questions the learner had NEVER
+     seen before, because repeated questions inflate scores. */
+  function computeReadiness(input){
+    const attempts = (input.attempts || []).filter(a => a.cert === input.cert).slice().sort((a, b) => a.ts - b.ts);
+    const weights = {}; (input.domains || []).forEach(d => { weights[d.key] = d.weight; });
+    const passing = input.passingScore || 750;
+    const passRaw = (passing - 100) / 800;
+    const pct = (c, t) => t ? c / t : null;
+    function weightedPct(ds){
+      let w = 0, s = 0;
+      Object.keys(ds || {}).forEach(k => { const d = ds[k]; if(weights[k] && d.total){ w += weights[k]; s += weights[k] * (d.correct / d.total); } });
+      return w ? s / w : null;
+    }
+    const rows = attempts.map(a => ({
+      ts: a.ts, coldRun: !!a.coldRun, form: a.form || null, total: a.total, correct: a.correctCount,
+      raw: pct(a.correctCount, a.total), weighted: weightedPct(a.domainStats),
+      estimate: a.total ? Math.round(100 + (a.correctCount / a.total) * 800) : null,
+      fresh: pct(a.freshCorrect || 0, a.freshTotal || 0), freshTotal: a.freshTotal || 0, freshCorrect: a.freshCorrect || 0,
+      repeat: pct(a.repeatCorrect || 0, a.repeatTotal || 0), repeatTotal: a.repeatTotal || 0, repeatCorrect: a.repeatCorrect || 0,
+      pbq: pct(a.pbqCorrect || 0, a.pbqTotal || 0), pbqTotal: a.pbqTotal || 0, pbqCorrect: a.pbqCorrect || 0,
+      retryAttempts: a.retryAttempts || 0, retryCorrect: a.retryCorrect || 0
+    }));
+    const full = rows.filter(r => r.total >= 40);              // ignore tiny drills when judging readiness
+    const recent = full.slice(-5);
+    const sum = (list, k) => list.reduce((s, r) => s + (r[k] || 0), 0);
+    let freshC = sum(recent, 'freshCorrect'), freshT = sum(recent, 'freshTotal');
+    let repC = sum(recent, 'repeatCorrect'), repT = sum(recent, 'repeatTotal');
+    let freshSource = 'exams';
+    if(!freshT && !repT && input.hist && input.hist.length){
+      // Older exam attempts predate the fresh/repeat fields; fall back to the exposure history.
+      const h = input.hist.filter(x => (x.graded || 0) >= 40).slice(-5);
+      freshC = h.reduce((s, x) => s + (x.freshCorrect || 0), 0); freshT = h.reduce((s, x) => s + (x.freshTotal || 0), 0);
+      repC = h.reduce((s, x) => s + (x.repeatCorrect || 0), 0); repT = h.reduce((s, x) => s + (x.repeatTotal || 0), 0);
+      freshSource = 'exposure';
+    }
+    const pbqC = sum(rows, 'pbqCorrect'), pbqT = sum(rows, 'pbqTotal');
+    // Wilson 90% interval on fresh accuracy
+    function wilson(c, n, z){ if(!n) return null; const p = c / n, d = 1 + z * z / n, ctr = (p + z * z / (2 * n)) / d, m = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d; return { p, lo: Math.max(0, ctr - m), hi: Math.min(1, ctr + m) }; }
+    const fw = wilson(freshC, freshT, 1.645);
+    let level = 'insufficient', label = 'Not enough fresh data yet', advice = 'Take at least one full Cold Run (Strict policy) so the dashboard has never-seen questions to judge from.';
+    if(fw && freshT >= 60){
+      if(fw.lo >= passRaw){ level = 'ready'; label = 'On track'; advice = 'Your accuracy on never-seen questions is comfortably above the estimated passing line. Keep taking fresh Cold Runs and keep your weakest domain above it too.'; }
+      else if(fw.p >= passRaw){ level = 'borderline'; label = 'Borderline'; advice = 'You are around the estimated passing line on never-seen questions. Focus on your weakest domains and PBQs, then confirm with another fresh Cold Run.'; }
+      else { level = 'not-yet'; label = 'Not yet'; advice = 'Accuracy on never-seen questions is below the estimated passing line. Study your weakest domains before the next Cold Run.'; }
+    }
+    // domain performance across the last 5 full exams
+    const dom = {};
+    attempts.filter(a => a.total >= 40).slice(-5).forEach(a => Object.keys(a.domainStats || {}).forEach(k => {
+      const d = a.domainStats[k]; if(!dom[k]) dom[k] = { correct: 0, total: 0, label: d.label || k };
+      dom[k].correct += d.correct || 0; dom[k].total += d.total || 0;
+    }));
+    const domains = (input.domains || []).map(d => ({ key: d.key, label: d.label, weight: d.weight,
+      correct: dom[d.key] ? dom[d.key].correct : 0, total: dom[d.key] ? dom[d.key].total : 0,
+      pct: dom[d.key] && dom[d.key].total ? dom[d.key].correct / dom[d.key].total : null }));
+    const weakest = domains.filter(d => d.pct !== null).sort((a, b) => a.pct - b.pct)[0] || null;
+    const coldRuns = full.filter(r => r.coldRun);
+    const trend = coldRuns.slice(-10).map(r => ({ ts: r.ts, raw: r.raw, fresh: r.fresh }));
+    const firstHalf = trend.slice(0, Math.floor(trend.length / 2)), lastHalf = trend.slice(Math.floor(trend.length / 2));
+    const avg = (l, k) => { const v = l.map(x => x[k]).filter(x => x !== null); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
+    const improvement = trend.length >= 2 && avg(firstHalf, 'raw') !== null && avg(lastHalf, 'raw') !== null ? avg(lastHalf, 'raw') - avg(firstHalf, 'raw') : null;
+    const latest = full.length ? full[full.length - 1] : null;
+    const retry = { a: sum(full, 'retryAttempts'), c: sum(full, 'retryCorrect') };
+    return {
+      passing, passRaw, latest, recent: full.slice(-8).reverse(), trend, improvement,
+      fresh: fw, freshTotal: freshT, freshSource, repeat: repT ? repC / repT : null, repeatTotal: repT,
+      pbq: pbqT ? pbqC / pbqT : null, pbqTotal: pbqT,
+      retry: retry.a ? retry.c / retry.a : null, retryTotal: retry.a,
+      domains, weakest, level, label, advice,
+      cli: input.cli || null, lab: input.lab || null, examsTaken: full.length, coldRunsTaken: coldRuns.length
+    };
+  }
+  function readinessEstimateFromRaw(raw){ return raw === null || raw === undefined ? null : Math.round(100 + raw * 800); }
+  /* READINESS_END */
 
   /* EXPOSURE_DATA_START */
   /* Near-duplicate groups (same concept, near-identical wording) share an exposure penalty and never
@@ -4641,6 +4738,10 @@
   const EXPOSURE_GROUPS = { security_plus: [["#pzadvg3s", "#z4ebat3s"], ["#1s29uun4l", "#6tv99r5v"], ["#12celr31u", "#3bisoz2c"], ["#187k0o63e", "#sm4e4y35"], ["#13iyrpp41", "#rttmlj37"], ["#v57ki85g", "#16dbyzc3m"], ["#729wj54b", "#op5esh5l"], ["#9kezqu60", "#13b7r4a3y"], ["#1o7vejf44", "#1ui39k83o"], ["#1k38dms2w", "#12u0o3r3y", "#g7dikq2o", "#qozs7w4q", "#1vb4f7f2s"], ["#1sxhb7b26", "#th0glq2d"]] };
   const EXPOSURE_SUPPLEMENTAL = ["#klvpln2b","#15e5xgh3q","#1s1uqn3q","#1ofj5nn5e","#htv7fr3c","#t5m8yo3c","#rsml1x2h","#p6chqy35","#1m0one128","#knhrya1p","#ldtb663w","#cb13ln3p","#y73acq28","#3qvbal32","#10l6u5h14","#l5pkfm2n","#k5g6752r","#9ugpe84i","#7qwmhj1u","#gmnopu43","#7qhbmx2a","#1hgdzc28","#1dqkvw3c","#1x1i9e63y","#1u8h20b3o","#1wit7ay2f","#168padt2c","#7ggtxv27","#18ezorf3i","#1c2ms0c2e","#i53ith1t","#1h7d6zc20","#lwjpi41u","#17ivp9a1t","#n3t16h26","#1r6qr8g1v","#dtl38z1b","#njyxzh20","#19o1jmez","#6wptqd1q","#1ethnk71k","#1jzp3sf37","#14hg5du3b","#vcspl131","#hg7mbh31","#142azxl2m","#13bnx7336","#19ddhe222","#1fjaiah1y","#wg957z22","#8nnjf93a","#uy7t5t1y","#ztipdu1x","#njtj5p23","#9ore1216","#ibulzq1k","#i4gluf1p","#471uts4b","#kndzs12j","#skjz2g2k","#oe39ot1y","#a1hh4828","#15tsx7g12","#y52rhe1q","#jno6141x","#1iiswts1f","#1vtfbyc1o","#l1u8243f","#8oo9ck2o","#1aus2lq2b","#jygwas2d","#4srsse3c","#rwgfjd3d","#hrnnkx3w","#fu9jzg3p","#1v32rso1r","#9hoz9g32","#amzfnt2n","#1gl7i7p3z","#12celr31u","#3bisoz2c","#100havn2l","#17qj27j28","#1th27j21","#1lhx2mh3b","#1f388p047","#w79yvh34","#wszn9v3o","#1h7di4c40","#1ghsdck3e","#g1z7cy2n","#18cu8eh3m","#11ed0363r","#msvdw04b","#1588fpa3r","#1dipejl3w","#1jutwfi2f","#1gncx743a","#5rawpi31","#6kvb9x3l","#nxb0nx2b","#1524j3e1q","#wvrne524","#11jkkl92m","#x88pnv28","#1udtm6x33","#1gqdzp51u","#15hrqst28","#1xyw2gn3l","#1edp09u24","#lfokf92g","#tjjy022c","#10kyyt43o","#1aracik20","#okro633h","#j3nfb448","#neopl83d","#11te6hv2p","#1xi9y2l38","#1q9jm8o34","#1q1q3nr2x","#13qn6w527","#m2dpog3n","#1fdkkxc3u","#iwvizb2m","#1392tig2s","#1r9kae63p","#sa0rv82b","#1evlgvb3d","#ajyvsq46","#gohid03s","#xyggaw1p","#1i6cww92h","#4myt052h","#126c6o2b","#l0wvqo2s","#w9lb2l2x","#o1ksob1m","#zz92n73v","#iex4b619","#v0nviz28","#1fgphrr3h","#c3n9nu26","#17pgr1m2k","#1khoh9nl","#k4wlgf2f","#w3p88n2d","#1oqqsuo30","#r3s2mt29","#1cadmsv2e","#1k8jm1n1a","#48mptk2f","#n4a4l71s","#wnhb1g1l","#1l8xn291r","#1myzdci1p","#rr1scf2t","#2hivde1d","#2z8xj12n","#3e1aux21","#1gw4wzdn","#sxuw6x2e","#uhusn01b","#v1huvds","#t50ce12k","#ytom9m","#ezlmll1u","#3jmk9u1s","#xkin8p2z","#10yq0p51j","#ez1o3lg","#qr7lr12q","#uqa1z51p","#2n271j3c","#nasuod21","#1j4aia1b","#2d9j0k2d","#13w8ksz26","#1ql3hdu2z","#o0y78r1t","#1t0wgoh2j","#1jv8dsi21","#1usth9k2q","#nn44ua24","#16iv1s31t","#10tmd9zv","#6ezdmv1y","#xzq1fq51","#1nyq08c2c","#6txn0s25","#l554a52z","#rfs3dd3r","#1d2hw6z26","#1p7egc82p","#dftl4935","#lf9sry5b","#1gvh8lu33","#9ddndj4p","#xv1goo3z","#19fqhyf2r","#1og6h8k2f","#8spc6n2l","#15y531r2u","#rdp98627","#1g1azo75m","#1kcbl0n3n","#1smg8g94j","#85czea4z","#1rp0j0333","#1uaktjh3v","#1rutynr3b","#jju4sc31","#8errk13f","#boqcj45","#t0coi93k","#qvoz7i20","#4pm9rk1r","#qikq8q2k","#z0ript20","#1ck5ptx45","#z2lzcg42","#7yqqch3m","#pvg1hy3d","#1l43gpj41","#1s3sk2r4x","#1u9u98x43","#1tos0vc3p","#1sbbwji1n","#1apqiqy2n","#psp3203l","#wz0aug5m","#imaiko3e","#4y7r4b2k","#hyoabn55","#vjtdp52f","#op5esh5l","#1qf40m32p","#15zk7e51w","#12cpsid21","#1ath8bi3r","#iigqdu37","#1q20uzi43","#155p7fq3f","#1ui39k83o","#hgbpe61k","#1c6h9ja20","#1fu9bp41m","#1a4zfij15","#499acn24","#7ah53k1f","#19qce2r2j","#1x7tvzd1k","#fw2v7423","#1ycb2qd3e","#1vum081n","#10ate8c2a","#1ekz9812t","#1g0w5072i","#acnrt61r","#111jyip23","#hoyqrk25","#zqekgb27","#11jwtak4c","#1fj1ae03d","#slw1h23g","#3jyq8p3b","#h7ig9f5p","#p2qhs54f"];
   /* EXPOSURE_DATA_END */
+  /* PRACTICE_FORMS_START */
+  /* Generated 2026-11-17 by the forms builder: 10 disjoint Security+ practice exams (question IDs). */
+  const PRACTICE_FORMS = { security_plus: [{"n":1,"mc":{"general":["#ehd9br4d","#1yuadu527","#f60gi746","#2qj8j94h","#1kgt5z55q","#d3qvht2z","#1jbr3e31y","#1wevajr56","#47yjd657","#il4zrv22"],"threats":["#6b6li71r","#1h1qtxu3t","#1ylrnxx30","#1u44k3d38","#1imm014x","#65xook2v","#1ar1gce1v","#1fie9lu3k","#1w0817i2c","#25z2nb4h","#b2xbfr57","#1agyhoq4p","#1mugxj02a","#fyrsn016","#zd59md64","#t8uxrn4d","#xxoj9547","#17yfji74j","#194byc04s"],"architecture":["#1xvg6bk5e","#lrhu5i3d","#16fey54p","#chlpto4i","#1f34pju5l","#etmqml4z","#mg9t0f4y","#1g1p3fr4k","#2j4pi94y","#1s29uun4l","#v2c7zy5m","#j9todf5f","#159slp73t","#123mfbf47","#cunwiw4g","#1cfah4l27"],"secops":["#1lyc38737","#kqatum4o","#c0dx1l3h","#bfcrav1j","#1ukfbq51q","#1vay96r5h","#itpamr5e","#fpjldc3y","#1fo55k961","#nwhr7t52","#u792iw2q","#194nwpt5p","#1esob164p","#5430lv4l","#1hv3mxe5n","#zpbbqm41","#u7eqmp5v","#s16lxc3c","#1fxybb441","#1fyaown51","#13pjgmp3w","#h97pfr4e","#1yrkm134n","#ljmlvh37"],"management":["#18bg7tu45","#1w4oi7y44","#htbf13l","#1qbnn3w1c","#1f7xyq92u","#5u06d23w","#r3n8nw4g","#g7dikq2o","#1tt9skg5a","#iur7cy5e","#1m7m4k03z","#1s3d0zq43","#zdd24a49","#o1jnws13","#1m1s2qj44","#13vc25r4l","#1c6nf4c4n"]},"pbq":["#10oal304h","#17wjup14j","#qio34e40","#1ckd79g1r"]},{"n":2,"mc":{"general":["#1xdlr6t3x","#vfxw8o2y","#108rdb93i","#f6j1pq2x","#1a5nk5e40","#1exh7jv4k","#j75o921","#1c5nj8d5b","#1vm4e0s3z","#t866qr46"],"threats":["#psriai65","#pv47uf51","#149eet657","#vzwf1o4s","#weetua56","#10fym4e3d","#p992df1v","#shjcg35z","#45f5cq2c","#1th8g2k4b","#1lsy5e46v","#1ncwynj25","#1ijo6a72l","#1h18toi46","#xpgrvs2f","#6intpg2p","#19gxvec5q","#1riw2fd2b","#y550sr2m"],"architecture":["#12u97wi42","#1a0bh361f","#x5tjv84l","#16dbyzc3m","#1n2dxt65b","#1bzuzte54","#67p2i34d","#11lh06v4f","#u59sa13k","#dl929p3k","#6tv99r5v","#17rbpuy42","#1rm9vra63","#474qg54q","#14ls87g45","#11zyf2324"],"secops":["#dieg8q1r","#1fn9y393r","#1kkct4037","#1sxhb7b26","#18v96fx4v","#999d11x","#3dvel54j","#nndd435i","#a9rji34m","#1t3q8km3r","#gatgye5r","#1q5zox15e","#17akhxg4d","#1wbm20g6d","#c6f9ft48","#1mc5row43","#dx4fq5d","#kzkds03i","#17e8ne14e","#1wh6p084q","#1mv6l0v1v","#dqh12h4l","#1xafy6a2p","#8wrtk237"],"management":["#6vupv63q","#1nwnicu5f","#htkjnt2w","#13c95t24q","#qozs7w4q","#1piox584h","#1ml83sv4m","#tomjpk3z","#150ccpi3v","#17vl80a4r","#ioziuz4q","#1f61zju5u","#obkrqt45","#vinlvp3v","#r3cdmd27","#1i2qobj3h","#nm5tr93l"]},"pbq":["#155mjb742","#1jmz1jf5c","#s0g1b84h","#1i2bqw727"]},{"n":3,"mc":{"general":["#1obfhud66","#nwadw75i","#1lo2bz93u","#1g8dmba1h","#73l4je4p","#1nkzvrf4x","#1guehvi4q","#1wd3tcd25","#as6gef4q","#i9e06w3a"],"threats":["#15kssn84i","#elpemi3l","#1v2nwlm44","#1w438pl3u","#14bbmc31h","#jgh3q64q","#h4liyd4q","#j1pt63w","#1y6el0568","#1pxfgvr5d","#1vnnzza2p","#i83bs562","#1ierxtl4l","#19d88c25f","#1yybjfm2v","#s7nc8u3p","#3vhqnz34","#1imgliw5k","#18m8zq93j"],"architecture":["#1y8kvck3z","#z4ebat3s","#19iyy982i","#hh4xvc2e","#1i0v4ii59","#1o7h9qf4h","#k8jlwc1h","#1spkcni3b","#1s8xd8y3w","#a4jfby5q","#it0y6a3p","#ywqznl2z","#av4p6e2u","#uzmzzv44","#729wj54b","#h9otbo3i"],"secops":["#mmxo4p6e","#1jz7jbq2k","#nj7vu230","#djhm9h2s","#1dia5813k","#1cpx5pk4h","#1rte2m44p","#srbet71h","#1c8u90v5l","#j33vij4f","#1728ycr2d","#4uc7ta4z","#k8ks1d7b","#nygyj02d","#1jumcmx5b","#zmfkhx3i","#yr9o7e5w","#ppl1y05e","#98d0fl55","#wdamh91i","#1dqggo94w","#11xinpp58","#kc6tjk4b","#1gwmw1q1e"],"management":["#twzrpl3z","#z3s0fh3t","#1ywv13n32","#1poag3y2v","#3nva5857","#1r3wpvh3t","#hxbcbf3d","#od3m3y2o","#857jdm59","#1do7qdy47","#msyg864b","#mhir4r5e","#xfwckv3e","#1xxr8ok3h","#1od38kc4o","#1ikj2nh5z","#1fqc3u45t"]},"pbq":["#10nedfi4n","#ccxjgy5h","#rn93nu1w","#iqf93b5n"]},{"n":4,"mc":{"general":["#36hj945a","#58d2yu5z","#1f0ufam33","#ye97ep5p","#ukjh5o5b","#16h31lq32","#qsv31o2x","#88hqug22","#tqafhr23","#102zmys1y"],"threats":["#1gjm8jn33","#1yifkvy3w","#xp5ok651","#rzmyz149","#1j4x60d60","#n8t45021","#9u2lc42t","#mulbjh7j","#1cv2rom40","#1aa181c42","#f2hgij31","#133h4zm4x","#1712x9d5f","#kdxqjl2q","#1xh9usc65","#1ggoa6k4p","#1ey45up61","#1cdjbwe1t","#1fg6k0m5x"],"architecture":["#14gxvu41y","#18rhz4y50","#1w3a9q05u","#fsffyj4f","#1jzmjrr4o","#1ljuulw3g","#jyetdq3f","#xbj1uh4q","#1uoykfs1t","#m7t9mt1t","#11x44rz4n","#18fj9lr4d","#3o31hy4i","#1dnxe7p1j","#11l8ewe2o","#y19m4p52"],"secops":["#zwt9he1z","#1y4ri2f4u","#s0w7z85w","#1ye853o3i","#ffxdwp4r","#1xfeory5t","#1hwp9rz4j","#1003yn75i","#pck5y07m","#fk8eaq4m","#io6cbu5n","#1tzc1cg4i","#x7oenh41","#1vewfnv36","#zmrq9l1f","#9k4x2s21","#a31a454l","#1xnsa34q","#9770tz2x","#lm0p14w","#18lgs7m2d","#198m2sr3s","#x4jnln60","#1mhrn2i1x"],"management":["#v0917z2t","#sihdee5j","#1dj7bn73n","#1nb6gqw35","#1edyenr3m","#dedgdt1w","#1ox9z24e","#v7h29a3v","#zvh6dq3g","#6qy6as40","#15se3ue3a","#g02l3i67","#1ltf0g3h","#t0cucv37","#1ape33t34","#13aki4d4g","#6pdmnp2i"]},"pbq":["#1d9m9se3u","#e61p046w","#uxjg3j1n","#1asmj8p64"]},{"n":5,"mc":{"general":["#i2tmsf6g","#2p4f7u52","#12vhyg752","#1un6uvz58","#15uo60f4r","#16lqeil16","#1v6r6j11s","#1br4pkz1i","#3d28oq33","#162ofws2m"],"threats":["#1qqmg283i","#9xae8l6d","#v4ae3u4b","#df7lgz6e","#187n82a5j","#1ooozaw5v","#1j28pbq4w","#hz3yi62a","#1pypl835h","#1qxv49m1z","#1zrs0d2w","#1tiw4ic51","#b07u3e21","#1tempm354","#1c8vy6y5a","#1o6qng548","#1qdpnl46x","#15qj2jw4j","#d3yle722"],"architecture":["#1psad1jx","#af4vn63t","#tehhwz25","#1vcgst328","#13xnw5s4f","#8h1n2m5n","#85isps37","#hfzpyj5s","#11kl0d5j","#1rdjwp75d","#68gad82g","#8nxkhv5k","#1kwm9dv1z","#1xywx3os","#6ppr9o5c","#vj473024"],"secops":["#1sqxi1u65","#jjr7022s","#1ye5p1y4u","#1wc0dhz5i","#la77ie26","#fluidz2b","#25vr1e4r","#28aolk4w","#18a1hck56","#1ijlslo5e","#i0ccfl59","#rkse5q3w","#1bburow4w","#1nj4qiy4p","#5koadh2n","#1sldop44a","#1p4290f4e","#k5dd13s","#jdeofz1s","#1ooymew5i","#12duqkt4n","#89xa274c","#1i002u3l","#1tg8asy35"],"management":["#32pm5y3c","#1bwnawf5x","#h4a4zu4v","#1h7kyzi3x","#mgqtlk4t","#1p1p5dt3b","#17trlz55l","#12u0o3r3y","#1tlokqu4z","#n4cb0o4e","#xqb7h01x","#rjdh693m","#195krsh25","#qrzvnr64","#10sgmya3d","#7ie13z33","#xmyunb2t"]},"pbq":["#crdthr4d","#f2slyr5s","#1lax0ef3z","#ap2zts3x"]},{"n":6,"mc":{"general":["#gjxplu3v","#1evi12t4d","#1guias24r","#1ulick02u","#a85r3559","#11ov3cr51","#9o5ypa4u","#s9abi16c","#p45ibo3t","#wgqh342r"],"threats":["#3suvnk3f","#z2oeuw4o","#1fxn5lq2u","#glhzrg3u","#1ux95o91r","#btlzbe60","#9dob0j4j","#1k37pn21t","#1ulrb8b4k","#1vtgrs63v","#1vtn3dh2r","#6txi9j3d","#10n6e5j6f","#ott85v4j","#m073xg5k","#pblxlh46","#1emyx0z39","#1uid18s74","#17ire7o23"],"architecture":["#1tcf5l84m","#h81j3n3r","#174whvn57","#1br72cn3x","#1hmwsio4t","#w7an6c4i","#qqgwn3k","#y5anbv5l","#w088n353","#91n4to36","#xgcdsv3m","#1oqqfsq5m","#on7urh5b","#u8i0p3u","#fkfbm025","#11lje993m"],"secops":["#gg4nzi2e","#840mhy8h","#9bv0gb3x","#1dl8yng3r","#liislk35","#p9zdmx2a","#1qhl0ac3j","#ltws7147","#pwnt8t3q","#1jg2f4sz","#1p9elv74k","#1yzhp8x4q","#swjtvy3z","#iiedtn4b","#cprb293p","#189v6tl3o","#1b7mh5g57","#alyb2b4p","#1tafix632","#114xt6746","#1wpobnz4e","#uk79lr4a","#1408py45b","#q8xmod3v"],"management":["#2bbxwa3q","#uuwrf033","#1bh3cvb2w","#x77u482s","#qrp7s13n","#1ng68512u","#1hqjgq12t","#cfmluc4v","#y4mq3r45","#1cvtgto4i","#g7rf3o38","#16y3ldc3q","#1595vpl48","#t6hby854","#7ls4zd4l","#t1k6193t","#1u4f9415f"]},"pbq":["#1xp3cvx55","#1vqsky94k","#xcdxc240","#zh51tf1k"]},{"n":7,"mc":{"general":["#rk6xhb5b","#13qok873i","#1kd37p032","#187k0o63e","#uyojn35u","#1hnp41358","#1giqfbj53","#djsuvd3d","#4n9gh41","#1p0lheb17"],"threats":["#xkhl3944","#1r5z6js5n","#nkgewv2m","#ail3ea5l","#1rdn1ue6s","#x52wmn62","#6hvbgj2u","#1w803uc3r","#1noefua42","#16o9esb3g","#a97kmh5x","#1saqkwp52","#1a92fhm4r","#9mkone1j","#1axxh884j","#1hmv0eh49","#7facsc5h","#1lc90j25b","#2shl6v4j"],"architecture":["#i1h0b94w","#687tk93u","#pzadvg3s","#1q6alku5q","#14ir3un5p","#1vi6jda46","#skua2e3r","#v57ki85g","#1d4k0oj46","#1h305mi34","#1lqc3b41w","#gxx97r3d","#zis9o36","#1gqwnm1s","#1kjlr3b4c","#8i3cp740"],"secops":["#th0glq2d","#pjieql6u","#pqa9264c","#1hhfjuw43","#1nb8yjr3n","#1xdyvut24","#hgnrbe2w","#148se862e","#1iam86w4w","#1ykkjqo59","#1mssrnd3q","#r8m4qy2u","#3uvjnq5l","#1l9ejvq49","#194mmej2y","#1wbv20l5d","#tioqrm59","#15spxt154","#2vppkv4a","#o4mh144o","#oegb2d4l","#3s05ov2p","#16f72cd13","#1f2efe93f"],"management":["#hn78bf4n","#ve8y3d4m","#1ky9lf03b","#u0l6of3g","#1lgv74z4j","#1vb4f7f2s","#2rauwx41","#rzm2f030","#1iqwsk94o","#1quk2y32c","#1lhr12z3y","#1l0ljcr1h","#n8d6fi4i","#1if33865b","#6f5mhm44","#2da49i52","#16j7mza4u"]},"pbq":["#ohi5ul46","#1udzpm16k","#1a3gvi954","#1qmkip052"]},{"n":8,"mc":{"general":["#1p1sjtf3v","#1armjvv5j","#5r44yf2c","#1t8nlic65","#1meu1wb42","#z0g032g","#by6ed46y","#1n91vtw31","#onu6u91v","#1tdxje83v"],"threats":["#hnxh1z3c","#an92gd69","#etcj7r4b","#rttmlj37","#mu27t443","#fffc3j5i","#1oyl5qv29","#1imgu8t1w","#19dnrc04c","#df5o62f","#1w50aeo48","#1s3n5de26","#1ykw5hk2j","#jxozi12m","#jw79xf2y","#nyojni4c","#16vumiy3g","#1o5r8nw2e","#8upgog2i"],"architecture":["#1acv7xw3q","#1pek78a3i","#1wksiql5d","#1qnx5ga1m","#11nbv04y","#1uoryrg3y","#1cpgbse5i","#1esq56p54","#3iwl7i4s","#gwuqs653","#13sbks25","#k834p04f","#u0q6b221","#1bktma74u","#1c9stxf3z","#n3750f2r"],"secops":["#dv7fzs3a","#y19cri2k","#13b7r4a3y","#1223dx05n","#1e75myr4f","#1gg5a1y3z","#8bh1qd4t","#1mge2ol58","#1slptbc3z","#3wpar64z","#h7i8g32z","#7ir9e14m","#1qjwkx856","#1nto78k5a","#1qaq4c75t","#1rh7yww5a","#w1czh560","#isfdu956","#10ast6u2v","#1n93otx3z","#adwfnv3z","#1m8dpcr55","#7dfrq94u","#1d9i05p3x"],"management":["#19gph5j4c","#1uopxo83f","#1i1huur4i","#1k38dms2w","#1dxl7yu4o","#15z76a05j","#10sqjzi39","#150cdfs2p","#zeyptn4t","#25a1x72x","#1l86ett3t","#1sxm5v03z","#1t9trqk4q","#1i0ox8b5f","#7gq6v15o","#1nwev1y4w","#118va9w1z"]},"pbq":["#5ci5x35h","#6rr7g55b","#3bmqct69","#1riwrww2r"]},{"n":9,"mc":{"general":["#79sgsd3p","#ucbiiu30","#11n4hsi5a","#1pmtuss2a","#8tzved4o","#gmkjjc4z","#1kw246f5b","#w36yuj5e","#1vb31sd4t","#j6arvd46"],"threats":["#qufsd341","#1ie7dtz3u","#13iyrpp41","#idnie4g","#d61k7358","#1nmfwer2j","#atwykc4v","#1sf71ki4f","#oghl6p2u","#12fwt5r5x","#p9nxh52t","#zaovbb4l","#oexdew4k","#79xwv41z","#cw6t3042","#1xun0822h","#1rjpp084d","#137sylp3e","#jyn6gc1i"],"architecture":["#1p3juxq40","#176u3n95c","#dr4yfe60","#1u6sqmm5s","#1eunws84x","#zwtxu23u","#12sttaf20","#1fvwlr2y","#17ivved54","#1w6qsj02s","#159k9yf6h","#ngcq6837","#i6qi205t","#1iy4gat1o","#13qlxan5h","#mn15si"],"secops":["#rqmb484g","#2hn4b65z","#1puc3tq4p","#1joz2z53e","#1malof49","#qttkn93a","#4jtxky5b","#1qq70p050","#1tqmapf57","#1p80dy45c","#1la2bfl60","#qw54hc3o","#1lgg6t84b","#1sadz064d","#8xzl9lv","#f0bk9o4n","#b16ulo1s","#1k4mdbp2g","#1qohcsr23","#z9gzq664","#10ivdwt2l","#12bgggd4x","#ux5kby5e","#6jeyvt2a"],"management":["#zkx83l58","#1yekcrw4m","#o5ooia1q","#15k2phg1z","#ckg3en5o","#1vym5ck1i","#1xked5p5v","#1gko2l02m","#19mg5mp4x","#1yfwgd04l","#18s9u5n35","#gfax8e4n","#cz4dhf3z","#1s9y9k73y","#dzs8kq50","#1687sdu39","#m5782r30"]},"pbq":["#1gbcw4l3t","#186551y5a","#7n0rer23","#37c4ju52"]},{"n":10,"mc":{"general":["#eg43p51","#1f7ysi86o","#19vpdam29","#9d2btb4w","#10k9js24y","#e99gy06k","#7sir1g47","#nc6nie43","#jc5acs4i","#145j6iw4l"],"threats":["#1pup5wd4i","#14uyw793f","#1kw85a733","#obm6x53","#1pa1xzv5c","#1r1v6fy4r","#7jy0sn4z","#1dwwxof6j","#1sb3jvo21","#1qhg0nh36","#1l1d9z91l","#18xhozi4l","#81uged2x","#1aahqdl4b","#19h00ca4e","#obw43q3w","#8z4kn71e","#7d8xfx43","#napdea1p"],"architecture":["#1pu43kp48","#1qinuxm4j","#etpens49","#j5ar3l55","#nohfde4e","#6tlt6w2l","#g3orhu4a","#1m7by983k","#hzwdsl2p","#ym2hyg2t","#6ua6oz4i","#11tzycn2d","#ji8fxj2n","#fignox3e","#uzjknm1h","#1pqw88x14"],"secops":["#xd6edt1k","#9kezqu60","#etmjub54","#1xjhedw2h","#mysjno54","#mu9r761v","#13jtl4g2b","#11y43a13t","#xn9s0833","#wr81ka4z","#mjx5p60","#c85ytm5u","#1v3641a1e","#1ebdx241s","#1wny5sv23","#14m2j023t","#wh1fn44m","#1h7gq3s4e","#1ndu0sz16","#agx8ps5p","#zi1vmj3t","#1drwesl54","#17v0l3k4h","#1y4oaa437"],"management":["#uqek1k55","#qb7b0x2u","#3xqrjj4s","#1byi6ie4i","#zqlfbp4a","#12n7m4e2l","#qnbd9m4r","#18eb0ka1b","#1b1mgub2x","#t5xhxy4o","#1mcggjr3h","#15c2ktg4y","#zsphlu31","#1r1rx266s","#9kiht31","#hjexqq2i","#1tvlg5z28"]},"pbq":["#1w2nl263l","#1hb7zmo29","#152mt9j1b","#1jt2ko54"]}] };
+  /* PRACTICE_FORMS_END */
 
   const EXPOSURE_STORAGE_KEY = 'cybersec_exposure_v1';
   const EXAM_POLICY_KEY = 'cybersec_exam_policy_v1';
@@ -4672,6 +4773,117 @@
   }
 
   /* ---------- Question Exposure Dashboard ---------- */
+  /* READINESS_UI_START */
+  function readinessCertKey(){
+    const sel = document.getElementById('readiness-cert');
+    return (sel && sel.value) || 'security_plus';
+  }
+  function readinessData(ck){
+    const cert = CERTIFICATIONS[ck] || CERTIFICATIONS.security_plus;
+    let hist = [];
+    try{ hist = (exposure.raw()[ck] || {}).hist || []; }catch(e){}
+    let cli = null, lab = null;
+    if(ck === 'security_plus'){
+      try{ cli = cliTrainer.summary({ plat: 'all', coreOnly: true }); }catch(e){}
+      try{ lab = labEngine.summary(); }catch(e){}
+    }
+    return computeReadiness({ cert: ck, attempts: progressHistory.examAttempts || [], hist,
+      domains: cert.domains || [], passingScore: cert.passingScore, cli, lab });
+  }
+  function readinessTrendSVG(trend, passRaw){
+    if(!trend.length) return '<div class="qz-pool-info">No Cold Runs yet. Take a Cold Run from Exam Mode to start the trend line.</div>';
+    const W = 520, H = 150, pad = 26, n = trend.length;
+    const x = i => n === 1 ? W / 2 : pad + i * (W - pad * 2) / (n - 1);
+    const y = v => H - pad - v * (H - pad * 2);
+    const line = (k, color) => {
+      const pts = trend.map((t, i) => t[k] === null ? null : `${x(i).toFixed(1)},${y(t[k]).toFixed(1)}`).filter(Boolean);
+      if(!pts.length) return '';
+      return `<polyline fill="none" stroke="${color}" stroke-width="2" points="${pts.join(' ')}"/>` +
+        pts.map(p => `<circle cx="${p.split(',')[0]}" cy="${p.split(',')[1]}" r="3" fill="${color}"/>`).join('');
+    };
+    const py = y(passRaw).toFixed(1);
+    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%; max-width:${W}px; height:auto;" role="img" aria-label="Cold Run score trend">
+      <line x1="${pad}" x2="${W - pad}" y1="${y(0)}" y2="${y(0)}" stroke="var(--border)"/>
+      <line x1="${pad}" x2="${W - pad}" y1="${y(1)}" y2="${y(1)}" stroke="var(--border)" stroke-dasharray="2 4"/>
+      <line x1="${pad}" x2="${W - pad}" y1="${py}" y2="${py}" stroke="var(--danger)" stroke-dasharray="5 4"/>
+      <text x="${W - pad}" y="${py - 4}" text-anchor="end" font-size="10" fill="var(--danger)">est. passing line (${Math.round(passRaw * 100)}%)</text>
+      <text x="4" y="${y(1) + 4}" font-size="10" fill="var(--muted)">100%</text>
+      <text x="4" y="${y(0) + 4}" font-size="10" fill="var(--muted)">0%</text>
+      ${line('raw', 'var(--accent)')}${line('fresh', 'var(--good)')}
+    </svg>
+    <div class="qz-pool-info" style="margin-top:4px;"><span style="color:var(--accent);">●</span> raw score &nbsp; <span style="color:var(--good);">●</span> never-seen questions only</div>`;
+  }
+  function renderReadiness(){
+    const el = document.getElementById('readiness-content');
+    if(!el) return;
+    const ck = readinessCertKey();
+    const cert = CERTIFICATIONS[ck] || CERTIFICATIONS.security_plus;
+    const r = readinessData(ck);
+    const P = v => v === null || v === undefined ? '—' : Math.round(v * 100) + '%';
+    const levelColor = { ready: 'var(--good)', borderline: '#ffb454', 'not-yet': 'var(--danger)', insufficient: 'var(--muted)' }[r.level];
+    const L = r.latest;
+    const freshRange = r.fresh ? `${P(r.fresh.p)} (likely range ${P(r.fresh.lo)}–${P(r.fresh.hi)})` : '—';
+    const domainRows = r.domains.map(d => {
+      const pctN = d.pct === null ? 0 : Math.round(d.pct * 100);
+      const below = d.pct !== null && d.pct < r.passRaw;
+      const color = d.pct === null ? 'var(--border)' : (below ? 'var(--danger)' : 'var(--good)');
+      return `<div class="exam-domain-bar-row">
+        <div class="exam-domain-bar-label"><span>${escapeHtml(d.label)} <span style="color:var(--muted); font-size:11px;">· ${Math.round(d.weight * 100)}% of exam</span>${r.weakest && r.weakest.key === d.key ? ' <span style="color:var(--danger); font-size:11px; font-weight:700;">WEAKEST</span>' : ''}</span><span>${d.total ? `${d.correct}/${d.total} (${pctN}%)` : 'no data'}</span></div>
+        <div class="exam-domain-bar-track" style="position:relative;"><div class="exam-domain-bar-fill" style="width:${pctN}%; background:${color};"></div><div style="position:absolute; top:-2px; bottom:-2px; left:${Math.round(r.passRaw * 100)}%; border-left:2px dashed var(--danger);"></div></div>
+      </div>`;
+    }).join('');
+    const recentRows = r.recent.map(a => `<tr><td>${new Date(a.ts).toLocaleDateString()}</td><td>${a.form ? `Practice Exam ${a.form}` : (a.coldRun ? 'Cold Run (fresh)' : 'Exam')}</td><td>${a.correct}/${a.total} (${P(a.raw)})</td><td>${P(a.weighted)}</td><td>${a.estimate === null ? '—' : a.estimate}</td><td>${a.freshTotal ? `${a.freshCorrect}/${a.freshTotal} (${P(a.fresh)})` : '—'}</td><td>${a.pbqTotal ? `${a.pbqCorrect}/${a.pbqTotal}` : '—'}</td></tr>`).join('');
+    const cliHtml = ck !== 'security_plus' ? '' : `<div class="qz-config-label">Command line</div>
+      <div class="exposure-stat-grid">
+        ${exposureStat(r.cli ? `${r.cli.mastered}/${r.cli.total}` : '—', 'core commands mastered')}
+        ${exposureStat(r.cli ? r.cli.struggling : '—', 'commands needing work')}
+        ${exposureStat(r.cli && r.cli.accuracy !== null ? P(r.cli.accuracy) : '—', 'flashcard recall accuracy')}
+        ${exposureStat(r.lab ? `${r.lab.completed}/${r.lab.total}` : '—', 'terminal labs attempted')}
+        ${exposureStat(r.lab && r.lab.avgBest !== null ? P(r.lab.avgBest) : '—', 'average best lab score')}
+      </div>`;
+    const certOptions = Object.keys(CERTIFICATIONS).filter(k => CERTIFICATIONS[k].passingScore).map(k => `<option value="${k}" ${k === ck ? 'selected' : ''}>${escapeHtml(CERTIFICATIONS[k].label)}</option>`).join('');
+    el.innerHTML = `
+      <h2>🎯 Exam Readiness</h2>
+      <div class="cli-controls"><label>Certification<select id="readiness-cert">${certOptions}</select></label></div>
+      <div class="readiness-disclaimer"><strong>Unofficial practice estimate.</strong> CompTIA does not publish how raw answers convert to the 100–900 scale, and real exams weight questions differently. This app maps your raw percentage straight onto 100–900, so on this scale the official passing score of ${r.passing} equals ${Math.round(r.passRaw * 100)}% correct. Treat every number here as a study signal, not a prediction of your real score.</div>
+      <div class="readiness-hero" style="border-color:${levelColor};">
+        <div class="readiness-level" style="color:${levelColor};">${escapeHtml(r.label)}</div>
+        <div class="readiness-sub">Confidence is based only on questions you had <strong>never seen</strong> before, from your last ${Math.min(5, r.examsTaken) || 'few'} full exams${r.freshSource === 'exposure' ? ' (from Cold Run history)' : ''}: ${r.freshTotal ? `${freshRange} across ${r.freshTotal} fresh questions.` : 'no fresh questions recorded yet.'}</div>
+        <div class="readiness-sub" style="margin-top:6px;">${escapeHtml(r.advice)}</div>
+      </div>
+      <div class="qz-config-label">Latest full exam${L ? ` · ${new Date(L.ts).toLocaleDateString()}${L.coldRun ? ' · Cold Run' : ''}` : ''}</div>
+      <div class="exposure-stat-grid">
+        ${exposureStat(L ? P(L.raw) : '—', 'raw score (questions correct)')}
+        ${exposureStat(L ? P(L.weighted) : '—', 'blueprint-weighted score (domains weighted like the real exam)')}
+        ${exposureStat(L && L.estimate !== null ? L.estimate : '—', 'unofficial 100–900 estimate')}
+        ${exposureStat(r.passing, 'official passing score (CompTIA)')}
+      </div>
+      <div class="qz-config-label">What drives the score</div>
+      <div class="exposure-stat-grid">
+        ${exposureStat(r.fresh ? P(r.fresh.p) : '—', `accuracy on never-seen questions (${r.freshTotal})`)}
+        ${exposureStat(P(r.repeat), `accuracy on repeated questions (${r.repeatTotal})`)}
+        ${exposureStat(P(r.retry), `accuracy on questions you had missed before (${r.retryTotal})`)}
+        ${exposureStat(P(r.pbq), `PBQ accuracy (${r.pbqTotal})`)}
+        ${exposureStat(r.improvement === null ? '—' : `${r.improvement >= 0 ? '+' : ''}${Math.round(r.improvement * 100)} pts`, 'Cold Run trend (later runs vs earlier)')}
+      </div>
+      ${r.repeat !== null && r.fresh && r.repeat - r.fresh.p > 0.1 ? `<div class="qz-pool-info" style="margin-top:8px;">You score ${Math.round((r.repeat - r.fresh.p) * 100)} points higher on repeated questions than on new ones, which suggests some answers are remembered rather than reasoned. Trust the fresh-question number.</div>` : ''}
+      <div class="qz-config-label">Cold Run trend (last 10)</div>
+      ${readinessTrendSVG(r.trend, r.passRaw)}
+      <div class="qz-config-label">Domains (last 5 full exams) · dashed line = estimated passing line</div>
+      <div class="exam-domain-breakdown">${domainRows}</div>
+      ${practiceFormTableHtml(ck)}
+      ${cliHtml}
+      <div class="qz-config-label">Recent full exams</div>
+      ${recentRows ? `<div class="exposure-table-wrap"><table class="exposure-table"><thead><tr><th>Date</th><th>Type</th><th>Raw</th><th>Weighted</th><th>Unofficial est.</th><th>Never-seen</th><th>PBQs</th></tr></thead><tbody>${recentRows}</tbody></table></div>` : '<div class="qz-pool-info">No full exams (40+ questions) yet.</div>'}
+      <div class="cli-actions" style="margin-top:14px;"><button type="button" class="btn primary" id="readiness-go-exam">🎓 Go to Exam Mode</button>${ck === 'security_plus' ? '<button type="button" class="btn" id="readiness-go-cli">⌨️ CLI Mastery</button>' : ''}</div>
+      <div class="qz-pool-info" style="margin-top:10px;">For an independent check, take an outside practice exam you have never seen (for example Professor Messer's) and compare it with your fresh-question accuracy here.</div>
+    `;
+    document.getElementById('readiness-cert').addEventListener('change', renderReadiness);
+    document.getElementById('readiness-go-exam').addEventListener('click', () => switchTab('exam'));
+    const cliBtn = document.getElementById('readiness-go-cli');
+    if(cliBtn) cliBtn.addEventListener('click', () => switchTab('climastery'));
+  }
+  /* READINESS_UI_END */
   function exposureStat(value, label){
     return `<div class="exposure-stat"><div class="exposure-stat-value">${value}</div><div class="exposure-stat-label">${escapeHtml(label)}</div></div>`;
   }
@@ -4697,7 +4909,7 @@
     const hist = s.hist.slice(-8).reverse();
     const histRows = hist.map(h => {
       const when = new Date(h.ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-      const kind = h.coldRun ? `Cold Run #${h.run}` : 'Practice exam';
+      const kind = h.form ? `Practice Exam ${h.form} (Cold Run #${h.run})` : (h.coldRun ? `Cold Run #${h.run}` : 'Practice exam');
       const freshAcc = h.freshTotal ? `${Math.round(h.freshCorrect / h.freshTotal * 100)}%` : (h.graded ? '—' : 'not submitted');
       return `<tr><td>${when}</td><td>${kind}</td><td>${h.n}</td><td>${h.fresh}</td><td>${h.repeated}</td><td>${h.last3}</td><td>${freshAcc}</td></tr>`;
     }).join('');
@@ -4727,7 +4939,114 @@
     const row = document.getElementById('exam-supplemental-row');
     if(row) row.style.display = getActiveCert() === 'security_plus' ? '' : 'none';
     renderExposureDashboard();
+    try{ renderPracticeFormPicker(); }catch(e){}
   }
+  /* PRACTICE_FORMS_UI_START */
+  /* Ten fixed Security+ practice exams. Each is 86 multiple-choice questions (10/19/16/24/17 by domain,
+     matching the SY0-701 weights) plus 4 PBQs, with no question shared between exams. "Fresh exam"
+     still builds a new mix from the whole bank, which contains every practice exam's questions. */
+  let examStartingForm = null;
+  function practiceFormsFor(ck){ return (typeof PRACTICE_FORMS !== 'undefined' && PRACTICE_FORMS[ck]) || []; }
+  function practiceFormIds(f){ return Object.keys(f.mc).reduce((a, k) => a.concat(f.mc[k]), []); }
+  function practiceFormStatus(ck){
+    let seenQ = {};
+    try{ seenQ = (exposure.raw()[ck] || {}).q || {}; }catch(e){}
+    const atts = (progressHistory.examAttempts || []).filter(a => a.cert === ck && a.form);
+    const raw = a => a.total ? a.correctCount / a.total : 0;
+    return practiceFormsFor(ck).map(f => {
+      const ids = practiceFormIds(f), mine = atts.filter(a => a.form === f.n);
+      return { n: f.n, total: ids.length, pbq: f.pbq.length, seen: ids.filter(id => seenQ[id]).length, attempts: mine.length,
+        first: mine.length ? raw(mine[0]) : null, best: mine.length ? Math.max.apply(null, mine.map(raw)) : null,
+        last: mine.length ? raw(mine[mine.length - 1]) : null, lastTs: mine.length ? mine[mine.length - 1].ts : null };
+    });
+  }
+  function practiceBankItem(ck, q){
+    return { id: q.oid || exposure.qid(q.question), domain: q.domain, question: q.question, options: shuffle(q.options), answer: q.answer,
+      explanation: q.explanation || '', domainLabel: domainLabelFor(ck, q.domain), fromBank: true };
+  }
+  /* Returns { mc, pbq, replaced } for practice exam n, or null. Any question that no longer exists
+     (for example, removed in a later bank update) is replaced from the same domain, never-seen first. */
+  function buildPracticeFormExam(ck, n){
+    const f = practiceFormsFor(ck).find(x => x.n === n);
+    if(!f) return null;
+    let seenQ = {};
+    try{ seenQ = (exposure.raw()[ck] || {}).q || {}; }catch(e){}
+    const bank = QUESTION_BANKS[ck] || [];
+    const byId = {};
+    bank.forEach(q => { byId[q.oid || exposure.qid(q.question)] = q; });
+    const inAnyForm = new Set();
+    practiceFormsFor(ck).forEach(x => practiceFormIds(x).forEach(id => inAnyForm.add(id)));
+    const mc = []; let replaced = 0;
+    Object.keys(f.mc).forEach(dk => {
+      const got = f.mc[dk].filter(id => byId[id]).map(id => practiceBankItem(ck, byId[id]));
+      if(got.length < f.mc[dk].length){
+        const used = new Set(got.map(q => q.id));
+        const spare = shuffle(bank.filter(q => q.domain === dk).map(q => practiceBankItem(ck, q))
+          .filter(q => !used.has(q.id) && !EXPOSURE_SUPPLEMENTAL_SET.has(q.id)))
+          .sort((a, b) => (inAnyForm.has(a.id) - inAnyForm.has(b.id)) || ((seenQ[a.id] ? 1 : 0) - (seenQ[b.id] ? 1 : 0)));
+        while(got.length < f.mc[dk].length && spare.length){ got.push(spare.shift()); replaced++; }
+      }
+      mc.push.apply(mc, got);
+    });
+    mc.forEach(q => { const e = seenQ[q.id]; q._exposure = { tier: e ? 3 : 0, fresh: !e, recent: false, seen: e ? e[0] : 0 }; });
+    const defs = PBQ_BANK.filter(p => pbqCertOf(p) === ck);
+    const defById = {};
+    defs.forEach(d => { defById[exposure.qid(d.prompt)] = d; });
+    let pdefs = f.pbq.map(id => defById[id]).filter(Boolean);
+    if(pdefs.length < f.pbq.length){
+      const have = new Set(pdefs);
+      const spare = shuffle(defs.filter(d => !d.drill && !have.has(d)));
+      while(pdefs.length < f.pbq.length && spare.length){ pdefs.push(spare.shift()); replaced++; }
+    }
+    const pbq = pdefs.map(def => { const inst = instantiatePBQ(def); inst._pbqId = exposure.qid(def.prompt); return inst; });
+    return { mc: shuffle(mc), pbq, replaced };
+  }
+  function selectedPracticeForm(){
+    const sel = document.getElementById('exam-coldrun-form');
+    const v = sel ? parseInt(sel.value, 10) : NaN;
+    return isNaN(v) ? null : v;
+  }
+  function pctTxt(v){ return v === null || v === undefined ? '—' : Math.round(v * 100) + '%'; }
+  function renderPracticeFormPicker(){
+    const row = document.getElementById('exam-form-row');
+    const sel = document.getElementById('exam-coldrun-form');
+    if(!row || !sel) return;
+    const ck = getActiveCert();
+    const forms = practiceFormsFor(ck);
+    row.style.display = forms.length ? '' : 'none';
+    if(!forms.length) return;
+    const prev = sel.value || 'fresh';
+    const st = practiceFormStatus(ck);
+    sel.innerHTML = `<option value="fresh">Fresh exam: a new mix from the whole bank (never-seen first)</option>` + st.map(s =>
+      `<option value="${s.n}">Practice Exam ${s.n}: ${s.attempts ? `taken ${s.attempts}×, best ${pctTxt(s.best)}` : 'not taken'}${s.seen ? ` · ${s.seen} of ${s.total} seen` : ''}</option>`).join('');
+    sel.value = st.some(s => String(s.n) === prev) ? prev : 'fresh';
+    renderPracticeFormNote();
+  }
+  function renderPracticeFormNote(){
+    const note = document.getElementById('exam-form-note');
+    if(!note) return;
+    const ck = getActiveCert(), n = selectedPracticeForm();
+    if(n === null){
+      note.innerHTML = 'Builds a new blueprint-weighted exam from the whole bank, which mixes questions from all 10 practice exams plus extras. Uses the repetition policy above.';
+      return;
+    }
+    const s = practiceFormStatus(ck).find(x => x.n === n);
+    if(!s){ note.textContent = ''; return; }
+    const seenLine = s.seen
+      ? `${s.seen} of its ${s.total} questions are already familiar from other exams, so they count as repeats, not fresh.`
+      : `None of its ${s.total} questions have been seen yet.`;
+    note.innerHTML = `Practice Exam ${n}: the same ${s.total} questions and ${s.pbq} PBQs every time, in a new order. ${s.attempts ? `First attempt ${pctTxt(s.first)}, best ${pctTxt(s.best)}, latest ${pctTxt(s.last)}.` : 'Not taken yet. Your first attempt is the honest benchmark.'} ${seenLine}`;
+  }
+  function practiceFormTableHtml(ck){
+    const st = practiceFormStatus(ck);
+    if(!st.length) return '';
+    const rows = st.map(s => `<tr><td>Practice Exam ${s.n}</td><td>${s.attempts || '—'}</td><td>${pctTxt(s.first)}</td><td>${pctTxt(s.best)}</td><td>${pctTxt(s.last)}</td><td>${s.seen}/${s.total}</td></tr>`).join('');
+    const taken = st.filter(s => s.attempts).length;
+    return `<div class="qz-config-label">Practice exams (${taken} of ${st.length} taken)</div>
+      <div class="exposure-table-wrap"><table class="exposure-table"><thead><tr><th>Exam</th><th>Attempts</th><th>First attempt</th><th>Best</th><th>Latest</th><th>Questions already seen</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="qz-pool-info" style="margin-top:6px;">Your first attempt at each exam is the fairest benchmark. Retakes show improvement but include remembered answers.</div>`;
+  }
+  /* PRACTICE_FORMS_UI_END */
 
   /* CLI_DATA_START */
   /* Security+ Command-Line Mastery commands. SY0-701's objectives do not list specific commands;
@@ -5162,8 +5481,8 @@
     if(progressHistory.quizAttempts.length > 200) progressHistory.quizAttempts = progressHistory.quizAttempts.slice(-200);
     persistProgressHistory();
   }
-  function recordExamAttempt(cert, correctCount, total, scaledScore, passed, domainStats){
-    progressHistory.examAttempts.push({ ts: Date.now(), cert, correctCount, total, scaledScore, passed, domainStats: domainStats || {} });
+  function recordExamAttempt(cert, correctCount, total, scaledScore, passed, domainStats, extra){
+    progressHistory.examAttempts.push(Object.assign({ ts: Date.now(), cert, correctCount, total, scaledScore, passed, domainStats: domainStats || {} }, extra || {}));
     if(progressHistory.examAttempts.length > 200) progressHistory.examAttempts = progressHistory.examAttempts.slice(-200);
     persistProgressHistory();
   }
@@ -7052,7 +7371,107 @@
     { domain:"management", question:"A server is valued at $200,000. A flood would destroy 40% of its value, and floods are expected once every two years. What ALE should the analyst calculate?", options:["$40,000","$20,000","$100,000","$80,000"], correct:[0], why:"SLE = $80,000, ARO = 0.5, so ALE = $40,000.", src:"original-2026-11", obj:"5.2", oid:"#1lgv74z4j", rev:"2026-11b" },
     { domain:"management", question:"Before sending customer data to a new analytics vendor, a company wants the contractual ability to inspect the vendor's security controls itself. Which provision should the contract include?", options:["Service-level agreement","Non-disclosure agreement","Right-to-audit clause","Memorandum of understanding"], correct:[2], why:"A right-to-audit clause lets the customer, or its auditor, examine the vendor's controls. An SLA sets performance targets, an NDA covers confidentiality, and an MOU is a non-binding statement of intent.", src:"original-2026-11", obj:"5.3" },
     { domain:"management", question:"A European customer asks a company to delete all of the personal data it holds about them. Which data subject right is the customer exercising?", options:["Right of access","Right to data portability","Right to be forgotten","Data minimization"], correct:[2], why:"Under GDPR, the right to erasure (the right to be forgotten) lets a data subject ask for their personal data to be deleted. Access lets them see their data, portability lets them take a copy elsewhere, and minimization is a principle the organization applies.", src:"original-2026-11", obj:"5.4" },
-    { domain:"management", question:"The SOC has a document that walks analysts step by step through what to do when a user reports a suspicious email: which tools to use, what to check and when to escalate. Which document type BEST describes this?", options:["Policy","Standard","Guideline","Procedure"], correct:[3], why:"Step-by-step operational instructions are a procedure; a security playbook is one kind. A policy states intent and rules, a standard sets mandatory specifics, and a guideline is a recommendation.", src:"original-2026-11", obj:"5.1", oid:"#sihdee5j" }
+    { domain:"management", question:"The SOC has a document that walks analysts step by step through what to do when a user reports a suspicious email: which tools to use, what to check and when to escalate. Which document type BEST describes this?", options:["Policy","Standard","Guideline","Procedure"], correct:[3], why:"Step-by-step operational instructions are a procedure; a security playbook is one kind. A policy states intent and rules, a standard sets mandatory specifics, and a guideline is a recommendation.", src:"original-2026-11", obj:"5.1", oid:"#sihdee5j" },
+    /* ---- Original application-style questions, batch 2 (2026-11-17): General Security Concepts focus ---- */
+    { domain:"general", question:"After a laptop theft, a company's policy requires full-disk encryption on all endpoints. IT enforces this with a management tool that blocks unencrypted devices from the VPN. Which control category BEST describes the VPN enforcement itself?", options:["Managerial", "Operational", "Physical", "Technical"], correct:[3], why:"Enforcement by software or hardware is a technical control. The written policy is managerial, and people carrying out processes is operational.", src:'original-2026-11b', obj:"1.1" },
+    { domain:"general", question:"A security manager schedules quarterly reviews in which supervisors confirm that each employee's access still matches their job. Which control category BEST describes these reviews?", options:["Technical", "Deterrent", "Physical", "Operational"], correct:[3], why:"Processes carried out by people, such as access recertification, are operational controls.", src:'original-2026-11b', obj:"1.1" },
+    { domain:"general", question:"Ransomware encrypted a file server overnight. The next morning, the operations team restores the shares from last night's immutable backup. Which control type did the backup restore provide?", options:["Directive", "Preventive", "Detective", "Corrective"], correct:[3], why:"Corrective controls restore systems and reduce damage after an incident has occurred.", src:'original-2026-11b', obj:"1.1" },
+    { domain:"general", question:"An organization's IDS raises an alert when it sees traffic matching a known exploit, but it cannot block anything. Which control type BEST describes the IDS?", options:["Detective", "Compensating", "Corrective", "Preventive"], correct:[0], why:"An IDS identifies and reports activity without stopping it, so it is detective. An IPS would be preventive.", src:'original-2026-11b', obj:"1.1" },
+    { domain:"general", question:"A small clinic can't afford the separation of duties its auditor recommends, so the owner reviews every payment log weekly and investigates anomalies. Which control type is the weekly review?", options:["Directive", "Compensating", "Corrective", "Deterrent"], correct:[1], why:"When the recommended control isn't feasible, an alternative control that reduces the same risk is compensating.", src:'original-2026-11b', obj:"1.1" },
+    { domain:"general", question:"A data center installs badge-controlled turnstiles that physically stop anyone without a valid badge from entering the lobby. Which combination of category and type BEST describes the turnstiles?", options:["Physical, preventive", "Operational, corrective", "Technical, detective", "Managerial, directive"], correct:[0], why:"Turnstiles are physical barriers that block entry before it happens.", src:'original-2026-11b', obj:"1.1" },
+    { domain:"general", question:"An attacker changes the bank account number in a vendor record so payments go to the attacker, but nothing is stolen or taken offline. Which security goal was MOST directly violated?", options:["Confidentiality", "Integrity", "Availability", "Non-repudiation"], correct:[1], why:"Unauthorized modification of data violates integrity.", src:'original-2026-11b', obj:"1.2" },
+    { domain:"general", question:"A disputed wire transfer must be traced to the specific employee who approved it, and the employee must not be able to credibly deny it. Which security concept MOST directly supports this?", options:["Obfuscation", "Least functionality", "Availability", "Non-repudiation"], correct:[3], why:"Non-repudiation, typically through digital signatures and audit logs, proves who performed an action.", src:'original-2026-11b', obj:"1.2" },
+    { domain:"general", question:"A VPN concentrator logs each user's connection time, session duration and data volume so security can review activity later. Which part of AAA does this logging provide?", options:["Authorization", "Accounting", "Identification", "Authentication"], correct:[1], why:"Accounting tracks what authenticated users did and for how long.", src:'original-2026-11b', obj:"1.2" },
+    { domain:"general", question:"After a user proves her identity with a password and a security key, the system checks her group memberships and allows read-only access to the finance share. Which AAA step decided the access level?", options:["Accounting", "Authentication", "Identification", "Authorization"], correct:[3], why:"Authorization determines what an authenticated identity may do.", src:'original-2026-11b', obj:"1.2" },
+    { domain:"general", question:"Before deploying a zero trust project, the security team compares the company's current controls with the requirements of its target framework to see what is missing. Which activity is this?", options:["Risk transfer", "Penetration test", "Tabletop exercise", "Gap analysis"], correct:[3], why:"A gap analysis compares the current state with the desired state to identify missing controls.", src:'original-2026-11b', obj:"1.2" },
+    { domain:"general", question:"A zero trust design limits each service account to the specific APIs it needs and segments workloads, so a compromised account can reach very little. Which control-plane concept does this reflect?", options:["Threat scope reduction", "Implicit trust zones", "Adaptive identity", "Data plane forwarding"], correct:[0], why:"Threat scope reduction shrinks what any compromised identity can reach.", src:'original-2026-11b', obj:"1.2" },
+    { domain:"general", question:"A zero trust platform raises its authentication requirements when a user signs in from a new country on an unmanaged device, and lowers them for a known, healthy laptop in the office. Which concept is this?", options:["Static authorization", "Adaptive identity", "Implicit trust", "Policy enforcement only"], correct:[1], why:"Adaptive identity adjusts authentication based on context and risk signals.", src:'original-2026-11b', obj:"1.2" },
+    { domain:"general", question:"A security team deploys a fake server with an attractive name on the internal network and alerts whenever anything connects to it. No legitimate user has a reason to touch it. Which deception tool is this?", options:["Honeypot", "Honeyfile", "Sinkhole", "Honeytoken"], correct:[0], why:"A honeypot is a decoy system. Any interaction with it is suspicious.", src:'original-2026-11b', obj:"1.2" },
+    { domain:"general", question:"A company builds an isolated network of several decoy servers and workstations to study how attackers move once they get in. Which deception technique BEST describes this?", options:["Honeyfile", "DNS sinkhole", "Honeynet", "Honeytoken"], correct:[2], why:"A honeynet is a network of decoy systems used to observe attacker behavior.", src:'original-2026-11b', obj:"1.2" },
+    { domain:"general", question:"A government site wants staff at the entrance who can verify each visitor's identity at the entrance and escort them, especially during unusual situations that automated systems can't judge. Which control fits BEST?", options:["Bollards", "Motion sensors", "Security guards", "Access badges alone"], correct:[2], why:"Guards add human judgment, verification and escort ability that automated controls lack.", src:'original-2026-11b', obj:"1.2" },
+    { domain:"general", question:"A warehouse wants an alarm when someone steps on a section of floor near a high-value cage after hours. Which sensor is MOST appropriate?", options:["Microwave sensor", "Pressure sensor", "Ultrasonic sensor", "Infrared sensor"], correct:[1], why:"Pressure sensors detect weight or force on a surface.", src:'original-2026-11b', obj:"1.2" },
+    { domain:"general", question:"A company lights its parking lot and building perimeter brightly at night, mainly so intruders know they'll be seen and cameras capture clear images. Which BEST describes the lighting's role?", options:["Deterrent and detection aid", "Compensating control only", "Corrective control only", "Directive control only"], correct:[0], why:"Lighting discourages intruders and helps cameras and guards detect them.", src:'original-2026-11b', obj:"1.2" },
+    { domain:"general", question:"A change request to upgrade the VPN appliance is approved, but the team realizes it has no tested steps for reverting if the upgrade fails. What should be added BEFORE the change proceeds?", options:["A rehearsed backout plan", "A new SLA", "A risk acceptance memo", "A vendor NDA"], correct:[0], why:"Every change needs a way to restore the prior state if it fails.", src:'original-2026-11b', obj:"1.3" },
+    { domain:"general", question:"A change to a payroll server is approved for Saturday from 1 a.m. to 3 a.m., when payroll isn't running, to minimize business impact. What does this time window represent?", options:["Recovery time objective", "Maintenance window", "Change freeze exception", "Backout plan"], correct:[1], why:"A maintenance window is the agreed time for changes that minimizes disruption.", src:'original-2026-11b', obj:"1.3" },
+    { domain:"general", question:"After a firewall upgrade, an old line-of-business application stops working because it relies on a deprecated cipher. Which change management technical consideration was MOST likely missed?", options:["Service restart timing", "Version control tagging", "Legacy app dependencies", "Documentation updates"], correct:[2], why:"Legacy applications may depend on old protocols or settings, so test them before a change.", src:'original-2026-11b', obj:"1.3" },
+    { domain:"general", question:"A patch requires the database service to restart, which will disconnect active users for five minutes. Where should this be identified so users can be warned and the work scheduled?", options:["In the incident response plan", "In the acceptable use policy", "In the change request", "In the risk register only"], correct:[2], why:"Restarts and downtime are technical implications that the change record should document and plan for.", src:'original-2026-11b', obj:"1.3" },
+    { domain:"general", question:"Months after a series of firewall changes, nobody can explain why several rules exist, and the network diagrams no longer match reality. Which change management practice was neglected?", options:["Getting stakeholder sign-off", "Scheduling maintenance windows", "Writing tested backout plans", "Updating documentation"], correct:[3], why:"Documentation, diagrams and policies must be updated as part of each change.", src:'original-2026-11b', obj:"1.3" },
+    { domain:"general", question:"An application team wants to add a new external API server to an application allow list. Before approval, the CAB asks which business unit is accountable for the server. Which change management element is this?", options:["Ownership", "Test results", "Backout plan", "Maintenance window"], correct:[0], why:"Each change needs a clear owner who is accountable for it.", src:'original-2026-11b', obj:"1.3" },
+    { domain:"general", question:"A company encrypts laptops with full-disk encryption and also encrypts a specific database column holding Social Security numbers. Why might it use column-level encryption in addition to FDE?", options:["It fully replaces the need for FDE", "It protects data while the OS runs", "It removes any key management", "It speeds up database queries"], correct:[1], why:"FDE protects data only when the device is off. Field or column encryption still protects sensitive data while the system is running and accessible.", src:'original-2026-11b', obj:"1.4" },
+    { domain:"general", question:"An e-commerce site wants browsers to confirm they are talking to the real site and that traffic can't be read or altered. Which combination does TLS use to provide this?", options:["Steganography plus salting", "Hashing of every page only", "Tokenization of all pages", "Certificates plus symmetric encryption"], correct:[3], why:"TLS authenticates the server with its certificate, then encrypts the session with symmetric keys and integrity checks.", src:'original-2026-11b', obj:"1.4" },
+    { domain:"general", question:"A developer must prove that a firmware image came from the company and wasn't modified, before devices accept it. Which approach is BEST?", options:["Compress and checksum it", "Publish an MD5 hash of it", "Sign it with the private key", "Encrypt it with a shared password"], correct:[2], why:"Code signing with a private key lets devices verify origin and integrity using the public key.", src:'original-2026-11b', obj:"1.4" },
+    { domain:"general", question:"An organization's internal web servers use certificates issued by its own enterprise CA. New laptops show warnings for those sites until IT pushes something to them. What must IT deploy?", options:["A fresh CRL on each server", "The web servers' private keys", "A public wildcard certificate", "The internal root CA certificate"], correct:[3], why:"Clients trust certificates only if the issuing root is in their trust store.", src:'original-2026-11b', obj:"1.4" },
+    { domain:"general", question:"A security team wants a single certificate to protect www, mail and vpn under example.com, and any future subdomains, without reissuing. Which certificate type fits BEST?", options:["Wildcard certificate", "Code signing certificate", "Self-signed certificate", "EV certificate"], correct:[0], why:"A *.example.com wildcard covers any first-level subdomain. A SAN certificate covers only the names listed in it.", src:'original-2026-11b', obj:"1.4" },
+    { domain:"general", question:"A software vendor wants to show an immutable, public, tamper-evident record of every release hash, so customers can verify that no past entry was altered. Which technology fits this description?", options:["A key escrow service", "Steganographic watermarks", "A tokenization vault", "A blockchain ledger"], correct:[3], why:"A distributed public ledger chains entries cryptographically, making tampering evident.", src:'original-2026-11b', obj:"1.4" },
+    { domain:"general", question:"An attacker hides stolen data inside the pixels of ordinary-looking images posted to a social media account. Which technique is MOST likely being used?", options:["Data masking", "Key stretching", "Tokenization", "Steganography"], correct:[3], why:"Steganography conceals data inside other media.", src:'original-2026-11b', obj:"1.4" },
+    { domain:"general", question:"A password database uses PBKDF2 with 600,000 iterations, so each guess takes much longer to compute. What does this iteration count provide?", options:["Salting", "Tokenization", "Key stretching", "Perfect forward secrecy"], correct:[2], why:"Key stretching makes each hash computation expensive, which slows brute-force attacks.", src:'original-2026-11b', obj:"1.4" },
+    { domain:"general", question:"A laptop's BitLocker key is sealed to the TPM so the drive unlocks only if the boot process hasn't been tampered with. Which capability is the TPM providing?", options:["Certificate revocation checks", "Tokenization of the key", "A hardware root of trust", "Key escrow to a third party"], correct:[2], why:"The TPM measures boot integrity and releases sealed keys only to a trusted state.", src:'original-2026-11b', obj:"1.4" },
+    { domain:"general", question:"An application must verify the integrity of messages exchanged between two internal services that already share a secret key, and non-repudiation is not required. What is the MOST efficient choice?", options:["Key escrow", "Steganography", "RSA digital signature", "HMAC"], correct:[3], why:"An HMAC gives fast integrity and authenticity between parties that share a key. Signatures are needed only for non-repudiation.", src:'original-2026-11b', obj:"1.4" },
+    { domain:"general", question:"A CA discovers that an issuing server was compromised. Which action BEST limits harm from certificates it may have issued fraudulently?", options:["Extend their validity period", "Disable TLS on affected sites", "Revoke them via CRL/OCSP", "Re-hash the affected certificates"], correct:[2], why:"Revocation lets clients reject the affected certificates before they expire.", src:'original-2026-11b', obj:"1.4" },
+    { domain:"threats", question:"An employee gets a call from someone claiming to be from the bank's fraud team. The caller knows her name and recent purchases, and asks her to read back the one-time code just texted to her. Which attack is MOST likely occurring?", options:["Smishing", "Whaling", "Watering hole", "Vishing"], correct:[3], why:"Social engineering by voice call is vishing, often used to steal MFA codes.", src:'original-2026-11b', obj:"2.2" },
+    { domain:"threats", question:"A SIEM shows a single host trying to connect to TCP 445 on every IP in three internal subnets within two minutes, shortly after a user opened a suspicious attachment. What is the MOST likely activity?", options:["Lateral scanning by malware", "Nightly backup traffic", "Routine DNS resolution", "Normal file-share browsing"], correct:[0], why:"Rapid scanning for SMB across subnets after infection suggests worm propagation or lateral movement.", src:'original-2026-11b', obj:"2.4" },
+    { domain:"architecture", question:"A company wants remote employees to reach internal apps without a full network VPN. Each app session should be brokered only after identity and device checks. Which approach fits BEST?", options:["Internet-facing RDP", "ZTNA", "Split-tunnel VPN", "Site-to-site IPsec"], correct:[1], why:"ZTNA grants per-application access after continuous identity and posture checks, instead of broad network access.", src:'original-2026-11b', obj:"3.2" },
+    { domain:"architecture", question:"A hospital wants analysts to use patient records for research, with names and identifiers replaced so individuals can't be identified, while the clinical data stays intact. Which technique fits BEST?", options:["Steganography", "Key escrow", "De-identification", "Full-disk encryption"], correct:[2], why:"Masking or de-identification removes identifiers but keeps the data usable for analysis.", src:'original-2026-11b', obj:"3.3" },
+    { domain:"secops", question:"An employee changes roles from sales to finance. A month later she still has full CRM admin rights from her old job. Which identity process failed?", options:["New-hire attestation", "Identity proofing", "Deprovisioning", "Federation"], correct:[2], why:"When a role changes, old access must be removed. Otherwise it accumulates into privilege creep.", src:'original-2026-11b', obj:"4.6" },
+    { domain:"secops", question:"Responders have removed malware and patched the vulnerability on a web server. They now restore it from a clean build, monitor it closely and return it to production. Which incident response phase is this?", options:["Containment", "Preparation", "Recovery", "Eradication"], correct:[2], why:"Recovery returns systems to normal operation with heightened monitoring.", src:'original-2026-11b', obj:"4.8" },
+    { domain:"secops", question:"An investigator must show which internal host looked up a known-malicious domain just before an infection. Which data source is MOST likely to contain this directly?", options:["Patch reports", "Badge access logs", "Vulnerability scan reports", "DNS resolver logs"], correct:[3], why:"DNS query logs record which client resolved which domain, and when.", src:'original-2026-11b', obj:"4.9" },
+    { domain:"management", question:"A risk analyst rates a threat as \"high likelihood, low impact,\" another as \"low likelihood, high impact,\" and plots both on a heat map for leadership. Which type of risk analysis is this?", options:["Qualitative", "Annualized", "Inherent only", "Quantitative"], correct:[0], why:"Descriptive likelihood and impact ratings are qualitative analysis.", src:'original-2026-11b', obj:"5.2" },
+    { domain:"management", question:"Before giving a new SaaS vendor access to customer data, a company reviews the vendor's SOC 2 report, security questionnaire and breach history. Which activity is this?", options:["Vendor monitoring", "Attestation", "Vendor due diligence", "Rules of engagement"], correct:[2], why:"Due diligence assesses a vendor's security before entering the relationship. Monitoring continues afterward.", src:'original-2026-11b', obj:"5.3" },
+    { domain:"management", question:"A data breach exposed customer card data, and the company's card processor now requires an independent investigation and raises its transaction fees. Which consequence of non-compliance is this?", options:["Reputational damage only", "Contractual impact", "Loss of license", "Sanctions"], correct:[1], why:"Penalties imposed through business agreements are contractual impacts.", src:'original-2026-11b', obj:"5.4" },
+    { domain:"management", question:"An external firm is hired to test whether staff can be talked into revealing passwords over the phone and whether visitors can enter without badges. Which assessment type BEST describes this?", options:["Social engineering and physical test", "Credentialed vulnerability scan", "Compliance self-assessment", "Secure code review"], correct:[0], why:"Testing people and physical access is social engineering and physical penetration testing.", src:'original-2026-11b', obj:"5.5" },
+    { domain:"management", question:"After phishing training, the security team tracks how many employees report the next simulated phish within ten minutes. What is this reporting rate MOST useful for?", options:["Replacing email filtering", "Measuring program effectiveness", "Disciplining slow reporters", "Calculating phishing ALE"], correct:[1], why:"Report rates and click rates are key metrics for how effective awareness training is.", src:'original-2026-11b', obj:"5.6" },
+    /* ---- Original application-style questions, batch 3 (2026-11-17): Security Operations + Threats, for the 10 fixed practice exams ---- */
+    { domain:"secops", question:"A company is rolling out 300 new Windows laptops. The security team wants every device to start with the same approved settings, and wants to be alerted when a device drifts from them later. What should the team do FIRST?", options:["Ask users to review the hardening guide before first login", "Run a vulnerability scan against each laptop once a month", "Install a host-based firewall with default allow rules", "Define a secure baseline and deploy it with a management tool"], correct:[3], why:"A documented baseline pushed through configuration management gives a known-good state, and drift can then be measured against it.", src:'original-2026-11c', obj:"4.1" },
+    { domain:"secops", question:"A plant's engineering workstations run software that controls a production line. The vendor does not support patches more than once a year, and the line cannot stop during shifts. Which approach BEST reduces risk to these systems?", options:["Apply every operating system patch as soon as it is released", "Segment them on an isolated network with strict access controls", "Replace the control software with a cloud-hosted version", "Allow remote desktop access so the vendor can patch faster"], correct:[1], why:"When ICS/OT systems can't be patched quickly, network isolation and tightly controlled access are the main compensating protection.", src:'original-2026-11c', obj:"4.1" },
+    { domain:"secops", question:"A hospital issues tablets to nurses. A lost tablet must not expose patient data, and IT must be able to erase it remotely. Which solution BEST meets both needs?", options:["Use a guest Wi-Fi network for all tablet connections", "Require a four-digit PIN and disable the tablet camera", "Enroll the tablets in MDM with encryption and remote wipe", "Store patient records on the tablets in a hidden folder"], correct:[2], why:"Mobile device management enforces device encryption and lets IT wipe a lost device remotely.", src:'original-2026-11c', obj:"4.1" },
+    { domain:"secops", question:"A new wireless network for employees must authenticate each user individually and allow IT to revoke a single person's access without changing everyone's settings. Which configuration BEST meets this requirement?", options:["WPA3-Personal with a long shared passphrase", "WPA2-Personal with MAC address filtering", "WPA3-Enterprise with 802.1X and a RADIUS server", "An open network with a captive portal page"], correct:[2], why:"Enterprise mode with 802.1X authenticates each user against a directory through RADIUS, so one account can be disabled on its own.", src:'original-2026-11c', obj:"4.1" },
+    { domain:"secops", question:"A cloud engineer finds that several new virtual machines were launched with SSH open to the internet and default administrator accounts enabled. Which change would MOST effectively prevent this from happening again?", options:["Move every VM to a different region with fewer users", "Deploy VMs only from hardened, approved images and templates", "Run a weekly scan and email the results to the engineers", "Rotate the administrator passwords on each VM every month"], correct:[1], why:"Building from hardened golden images or templates removes insecure defaults before a system ever goes live.", src:'original-2026-11c', obj:"4.1" },
+    { domain:"secops", question:"During an incident, responders can't tell who owns a compromised server or what data it stores, which delays containment by several hours. Which process would MOST likely have prevented this delay?", options:["Maintaining an asset inventory with assigned owners", "Running daily full backups of every server", "Performing annual penetration tests on servers", "Requiring MFA for all administrator logins"], correct:[0], why:"An accurate inventory that records each asset's owner and data classification lets responders act quickly.", src:'original-2026-11c', obj:"4.2" },
+    { domain:"secops", question:"A company is retiring 40 servers whose drives held customer financial records. The drives will be recycled by a third party. What should the company require BEFORE the drives leave the building?", options:["Sanitization or destruction with a certificate of destruction", "A full backup of each drive stored on a file share", "A signed agreement that the recycler will not read the data", "A quick format followed by reinstalling the operating system"], correct:[0], why:"Drives with sensitive data must be sanitized or destroyed, and a certificate documents that it was done.", src:'original-2026-11c', obj:"4.2" },
+    { domain:"secops", question:"Finance wants to know whether any laptops have gone missing. The asset system lists 1,200 laptops, but only 1,130 checked in with the management tool in the last 90 days. What should the security team do NEXT?", options:["Buy 70 replacement laptops to keep the counts aligned", "Remove the 70 devices from the inventory so the totals match", "Reconcile the missing devices against assignment and disposal records", "Disable the management tool and rely on manual counts"], correct:[2], why:"Unaccounted-for assets must be reconciled with assignment, repair and disposal records to find out whether they were lost, stolen or retired.", src:'original-2026-11c', obj:"4.2" },
+    { domain:"secops", question:"A vulnerability scan reports a critical flaw on a server, but the administrator shows that the vulnerable package was removed last week and the scanner used an old version string. How should the finding be classified?", options:["False positive", "True positive", "True negative", "False negative"], correct:[0], why:"The scanner reported a vulnerability that is not actually present, which is a false positive.", src:'original-2026-11c', obj:"4.3" },
+    { domain:"secops", question:"Two vulnerabilities have the same CVSS base score. One is on an internet-facing payment server, and the other is on an isolated test machine with no sensitive data. How should the team prioritize them?", options:["Treat both equally because their CVSS scores match", "Fix the payment server first because of its exposure and data", "Fix the test machine first because it is easier to patch", "Accept both risks because the scores are identical"], correct:[1], why:"Prioritization should consider exposure, asset value and environment, not only the base score.", src:'original-2026-11c', obj:"4.3" },
+    { domain:"secops", question:"An unauthenticated scan of a database server returned only a few findings. The team suspects it missed missing patches and weak local settings. What would MOST improve the accuracy of the next scan?", options:["Run a credentialed scan with a read-only service account", "Run the same scan again at a different time of day", "Switch to a passive scan that only listens to traffic", "Lower the scan speed so fewer packets are dropped"], correct:[0], why:"Credentialed scans log in and inspect installed software and configuration, finding issues an unauthenticated scan can't see.", src:'original-2026-11c', obj:"4.3" },
+    { domain:"secops", question:"A critical vulnerability affects an appliance, but the vendor's patch won't be released for six weeks. The appliance must stay online. What should the security team do NEXT?", options:["Publicly disclose the flaw so the vendor releases the patch sooner", "Remove the appliance from the asset inventory to close the finding", "Wait for the vendor patch and take no other action until then", "Apply compensating controls such as access restrictions and monitoring"], correct:[3], why:"When a patch isn't available, compensating controls reduce exposure until remediation is possible.", src:'original-2026-11c', obj:"4.3" },
+    { domain:"secops", question:"After the operations team installs a patch for a reported vulnerability, the security analyst schedules another scan of the same host. What is the PRIMARY purpose of this scan?", options:["Discover new assets on the network", "Validate that the remediation worked", "Measure the host's network bandwidth", "Create a new baseline for the SIEM"], correct:[1], why:"Rescanning after remediation verifies that the vulnerability is actually fixed.", src:'original-2026-11c', obj:"4.3" },
+    { domain:"secops", question:"A software company wants outside researchers to report flaws in its web application in exchange for rewards, under published rules about what can be tested. What is the company setting up?", options:["Internal code review", "Tabletop exercise", "Red team exercise", "Bug bounty"], correct:[3], why:"A bug bounty pays external researchers for responsibly reported vulnerabilities within a defined scope.", src:'original-2026-11c', obj:"4.3" },
+    { domain:"secops", question:"An application owner says a medium-severity finding can't be fixed until a redesign next year. Leadership agrees to accept the risk for now. What should the security team do to handle this properly?", options:["Document a time-limited exception with an owner and review date", "Mark the finding as fixed so it no longer appears in reports", "Tell the owner to stop scanning that application entirely", "Delete the finding from the scanner's results database"], correct:[0], why:"Accepted risks should be formally documented as exceptions with an owner and an expiry or review date.", src:'original-2026-11c', obj:"4.3" },
+    { domain:"secops", question:"A SOC receives 4,000 alerts a day from one SIEM rule. Analysts find almost all of them are routine backup jobs and have started ignoring the rule. What should the SOC do FIRST?", options:["Raise the rule's severity so analysts notice it more", "Hire more analysts to review every alert from the rule", "Disable the SIEM so analysts can focus on email alerts", "Tune the rule to exclude the known backup activity"], correct:[3], why:"Tuning removes known benign activity, reducing false positives and alert fatigue so real alerts get attention.", src:'original-2026-11c', obj:"4.4" },
+    { domain:"secops", question:"A security team wants to see which internal hosts talk to which external IP addresses, and how much data moves, without capturing full packet contents. Which data source BEST provides this?", options:["Application debug logs", "NetFlow records", "Full packet capture", "Vulnerability scan results"], correct:[1], why:"Flow data summarizes source, destination, ports and volume without storing payloads.", src:'original-2026-11c', obj:"4.4" },
+    { domain:"secops", question:"Auditors ask a company to prove that its servers are checked against an industry hardening guide using a common format that different tools can read. Which approach BEST meets this request?", options:["Export the firewall rules to a spreadsheet each quarter", "Use SCAP content to automate configuration compliance checks", "Ask each administrator to confirm compliance by email", "Record a video of an administrator reviewing settings"], correct:[1], why:"SCAP provides standardized, machine-readable checklists and results for automated compliance scanning.", src:'original-2026-11c', obj:"4.4" },
+    { domain:"secops", question:"A web server's log files must be kept for a year to support investigations, but the server's disk fills up every few weeks. What is the BEST way to meet the retention requirement?", options:["Keep only the most recent seven days of logs on the server", "Forward the logs to a central log server or SIEM with archiving", "Compress the logs and email them to the server administrator", "Turn off logging on the web server to save disk space"], correct:[1], why:"Centralized log collection with archive storage meets retention needs and protects logs if the server is compromised.", src:'original-2026-11c', obj:"4.4" },
+    { domain:"secops", question:"An analyst correlates a VPN login from another country with a badge entry at headquarters for the same user five minutes earlier. Which SIEM capability made this finding possible?", options:["Correlation of events from multiple sources", "Data loss prevention on outbound email", "Automatic patching of the VPN appliance", "Full-disk encryption of the SIEM database"], correct:[0], why:"A SIEM correlates events from different systems to find patterns, such as impossible travel, that no single log shows.", src:'original-2026-11c', obj:"4.4" },
+    { domain:"secops", question:"A firewall has a rule allowing any internal host to reach any external host on any port. The security team wants only web traffic to leave the network. Which change BEST meets this goal?", options:["Move the existing allow rule to the bottom of the rule list", "Allow outbound TCP 80 and 443 and add an explicit deny rule after", "Add a rule that blocks inbound TCP 80 and 443 from the internet", "Enable logging on the existing rule and review it each week"], correct:[1], why:"Least privilege at the firewall means permitting only the required ports and denying everything else.", src:'original-2026-11c', obj:"4.5" },
+    { domain:"secops", question:"Attackers are sending email that appears to come from the company's own domain. The company publishes SPF and signs mail with DKIM, but receivers still deliver the spoofed messages. What should the company add?", options:["A self-signed certificate on the mail server", "A second MX record pointing to a backup server", "A longer retention period for the mail logs", "A DMARC record with a reject or quarantine policy"], correct:[3], why:"DMARC tells receivers what to do when SPF or DKIM checks fail, and sends reports back to the domain owner.", src:'original-2026-11c', obj:"4.5" },
+    { domain:"secops", question:"A compliance rule requires alerts whenever a configuration file on a payment server changes. Which tool BEST meets this requirement?", options:["Network address translation", "DNS sinkholing", "File integrity monitoring", "Web content filtering"], correct:[2], why:"File integrity monitoring hashes critical files and alerts when they change.", src:'original-2026-11c', obj:"4.5" },
+    { domain:"secops", question:"Users are visiting newly registered domains used for phishing. The company wants to block them for every device, including laptops off the corporate network. Which solution BEST meets this need?", options:["A stateful firewall rule on the headquarters router", "An on-premises proxy reachable only from the office LAN", "A host file on each laptop listing known bad domains", "Cloud-based DNS filtering enforced by an endpoint agent"], correct:[3], why:"DNS filtering delivered from the cloud and enforced on the endpoint protects devices wherever they connect.", src:'original-2026-11c', obj:"4.5" },
+    { domain:"secops", question:"A security team wants to detect when an employee's behavior changes, such as downloading far more files than usual at unusual hours. Which capability BEST supports this?", options:["Static application security testing", "Port security on access switches", "Signature-based antivirus scanning", "User and entity behavior analytics"], correct:[3], why:"UEBA builds a baseline of normal behavior and flags deviations that may indicate insider threats or compromised accounts.", src:'original-2026-11c', obj:"4.5" },
+    { domain:"secops", question:"A company's antivirus missed a fileless attack that ran PowerShell in memory. Leadership wants a tool that records process activity on each host and lets analysts isolate a machine remotely. Which solution BEST fits?", options:["A host-based intrusion prevention list", "A secure email gateway with sandboxing", "Endpoint detection and response", "A next-generation perimeter firewall"], correct:[2], why:"EDR monitors endpoint behavior, keeps telemetry for investigation and can isolate hosts.", src:'original-2026-11c', obj:"4.5" },
+    { domain:"secops", question:"An IPS placed inline at the internet edge blocked a legitimate payment partner's traffic after a signature update, halting transactions. What should the team do to prevent this in the future while keeping protection?", options:["Test new signatures in detect-only mode before enforcing them", "Turn off automatic signature updates on the IPS permanently", "Move the IPS to a passive tap so it can never block traffic", "Remove the IPS and rely on the firewall alone from now on"], correct:[0], why:"Running new signatures in alert-only mode first lets the team spot false positives before they block business traffic.", src:'original-2026-11c', obj:"4.5" },
+    { domain:"secops", question:"An employee moved from accounting to marketing six months ago but can still approve payments in the finance system. Which process failure does this MOST likely show?", options:["Permissions were not removed when the role changed", "The account was created with a weak username", "The finance system does not support MFA", "The employee's password was never rotated"], correct:[0], why:"Privilege creep happens when access isn't adjusted during role changes. Regular access reviews catch it.", src:'original-2026-11c', obj:"4.6" },
+    { domain:"secops", question:"Employees sign in once to their corporate portal and then reach the HR system, email and a partner's travel booking site without signing in again. Which technology MOST likely provides access to the partner site?", options:["Port forwarding on the firewall", "A shared password for all users", "Federation using SAML", "Local accounts on the partner site"], correct:[2], why:"Federation lets a trusted identity provider vouch for users at another organization's service, commonly with SAML.", src:'original-2026-11c', obj:"4.6" },
+    { domain:"secops", question:"A company wants to stop administrators from using permanent domain admin accounts. Admins should request elevated rights for a short time, with each session recorded. Which solution BEST meets this need?", options:["Privileged access management with just-in-time elevation", "Mandatory access control with security labels", "Role-based access control with static admin groups", "A password policy requiring 20-character passwords"], correct:[0], why:"PAM tools provide time-limited elevation, credential vaulting and session recording.", src:'original-2026-11c', obj:"4.6" },
+    { domain:"secops", question:"Attackers have been approving fraudulent logins by bombarding users with push notifications until they tap Approve. Which change would BEST stop this attack?", options:["Require users to change their passwords every 30 days", "Send push notifications only during business hours", "Lower the account lockout threshold to three attempts", "Require number matching or FIDO2 security keys for MFA"], correct:[3], why:"Number matching and phishing-resistant FIDO2 keys defeat MFA fatigue because a simple approval tap is no longer enough.", src:'original-2026-11c', obj:"4.6" },
+    { domain:"secops", question:"When a new hire is added to the HR system, accounts in email, the VPN and the ticketing system should be created automatically with role-appropriate access. Which process does this describe?", options:["Account recertification", "Credential stuffing", "Attestation of controls", "Automated provisioning"], correct:[3], why:"Provisioning creates accounts and grants access, ideally automatically from the authoritative HR source.", src:'original-2026-11c', obj:"4.6" },
+    { domain:"secops", question:"A file share grants access based on whether the user is in the finance department, the file is labeled internal, and the request comes during business hours. Which access control model is this?", options:["Rule-based access control only", "Discretionary access control", "Mandatory access control", "Attribute-based access control"], correct:[3], why:"ABAC evaluates multiple attributes of the user, the resource and the environment to make a decision.", src:'original-2026-11c', obj:"4.6" },
+    { domain:"secops", question:"Analysts spend 20 minutes on each phishing report collecting headers, checking URLs against threat intelligence and blocking the sender. Which solution would MOST reduce this workload?", options:["A larger email quota for each analyst", "A policy requiring users to stop reporting phishing", "Moving the SOC to a twenty-four-hour shift schedule", "A SOAR playbook that automates the enrichment and blocking"], correct:[3], why:"SOAR playbooks automate repetitive enrichment and response steps, freeing analysts for decisions.", src:'original-2026-11c', obj:"4.7" },
+    { domain:"secops", question:"A company automates user account creation with scripts. Months later, a script error grants every new hire administrator rights for two weeks before anyone notices. Which risk of automation does this BEST illustrate?", options:["Scripts cannot be stored in version control", "Automation always increases staff training costs", "An error repeats at scale until someone detects it", "Automation removes the need for change management"], correct:[2], why:"Automation repeats mistakes quickly and widely, so scripts need testing, review and monitoring.", src:'original-2026-11c', obj:"4.7" },
+    { domain:"secops", question:"A SOC confirms that ransomware is spreading from one workstation to file servers over SMB. Which action should the responders take FIRST?", options:["Email all staff to explain what happened", "Restore the file servers from last week's backup", "Isolate the infected workstation from the network", "Run a full antivirus scan on every server"], correct:[2], why:"Containment comes first to stop the spread. Eradication and recovery follow.", src:'original-2026-11c', obj:"4.8" },
+    { domain:"secops", question:"After a breach is resolved, the incident team meets to discuss what happened, what worked, what didn't, and which procedures should change. Which phase of incident response is this?", options:["Containment", "Eradication", "Identification", "Lessons learned"], correct:[3], why:"The lessons-learned review improves future preparation and response.", src:'original-2026-11c', obj:"4.8" },
+    { domain:"secops", question:"An investigator copies a suspect's laptop drive for analysis and records who handled the drive, when, and why at every step. What is the PRIMARY purpose of this record?", options:["Satisfy the company's data retention schedule", "Maintain chain of custody so the evidence is admissible", "Speed up the imaging process for large drives", "Encrypt the evidence so others cannot read it"], correct:[1], why:"Chain-of-custody documentation proves evidence was not tampered with and supports its use in legal proceedings.", src:'original-2026-11c', obj:"4.8" },
+    { domain:"secops", question:"Before imaging a compromised server, a responder captures RAM, then running processes and network connections, and only then the disk. Why is this order used?", options:["It keeps the server online for the longest time", "Disk images cannot be taken while RAM is in use", "It is the fastest way to finish the whole collection", "It collects the most volatile evidence before it is lost"], correct:[3], why:"The order of volatility collects data that disappears quickly, such as memory, before more persistent data.", src:'original-2026-11c', obj:"4.8" },
+    { domain:"secops", question:"The company's attorney notifies IT that the company expects a lawsuit about a former employee. IT is told not to delete that employee's email or files. What is this instruction called?", options:["Legal hold", "E-discovery request", "Right to be forgotten", "Data retention policy"], correct:[0], why:"A legal hold suspends normal deletion so potentially relevant data is preserved for litigation.", src:'original-2026-11c', obj:"4.8" },
+    { domain:"secops", question:"An analyst starts from the assumption that an attacker is already inside and searches endpoint data for unusual parent-child process chains. Which activity BEST describes this?", options:["Business impact analysis", "Vulnerability scanning", "Proactive threat hunting", "Root cause analysis"], correct:[2], why:"Threat hunting proactively searches for hidden threats based on a hypothesis rather than waiting for alerts.", src:'original-2026-11c', obj:"4.8" },
+    { domain:"secops", question:"Investigators find that the same web server was compromised three times through different stolen admin accounts. Which activity would BEST stop the cycle?", options:["Changing the server's IP address after each incident", "Root cause analysis to find how the credentials were exposed", "Adding the attacker's latest IP address to a blocklist", "Rebuilding the server again from the same golden image"], correct:[1], why:"Root cause analysis looks past the symptom to the underlying cause so it can be fixed for good.", src:'original-2026-11c', obj:"4.8" },
+    { domain:"secops", question:"An analyst needs to know whether a phishing attachment was opened and which process it launched on a specific workstation. Which data source is MOST useful?", options:["Endpoint logs and EDR telemetry", "Vulnerability scanner reports", "Firewall allow and deny logs", "Wireless controller association logs"], correct:[0], why:"Endpoint telemetry records process creation and file activity on the host.", src:'original-2026-11c', obj:"4.9" },
+    { domain:"secops", question:"Investigators must confirm whether an attacker signed in to a Windows domain controller with a stolen account, and from which host. Where should they look FIRST?", options:["The web server's HTTP access logs", "The DHCP server's lease history", "Security event logs for logon events", "The building's CCTV recordings"], correct:[2], why:"Security event logs record logon events, including the account, logon type and source workstation.", src:'original-2026-11c', obj:"4.9" },
+    { domain:"secops", question:"After an alert, an analyst wants to see the exact commands an attacker sent to a web application in a POST request body. Which data source would contain this?", options:["NetFlow records for the web server", "The SIEM's daily summary report", "The switch's MAC address table", "Full packet capture of the traffic"], correct:[3], why:"Only packet capture keeps full payloads. Flow data and summaries do not include request contents.", src:'original-2026-11c', obj:"4.9" },
+    { domain:"threats", question:"A finance clerk receives a call from someone claiming to be the CFO, whose voice sounds exactly right, urgently asking for a wire transfer before a deal closes. Which attack is MOST likely occurring?", options:["Typosquatting attack", "Vishing using a deepfaked voice", "Smishing using a spoofed text", "Watering hole attack"], correct:[1], why:"A phone-based impersonation with a convincing synthetic voice is vishing, possibly aided by deepfake audio.", src:'original-2026-11c', obj:"2.2" },
+    { domain:"threats", question:"A web application builds SQL queries by inserting the user's search text directly into the query string. Which change BEST prevents SQL injection?", options:["Limit the search box to 100 characters", "Use parameterized queries for all database calls", "Move the database server to another subnet", "Hide database error messages from users"], correct:[1], why:"Parameterized queries keep user input separate from SQL code, preventing injection.", src:'original-2026-11c', obj:"2.3" },
+    { domain:"threats", question:"Hundreds of workstations are found beaconing every 60 seconds to the same external server and waiting for instructions. Which threat does this MOST likely indicate?", options:["A misconfigured NTP client polling a public time server", "A botnet communicating with a command-and-control server", "A user streaming video from a personal device", "A worm scanning the internal network for open shares"], correct:[1], why:"Regular beaconing from many hosts to one external server is a sign of botnet command and control.", src:'original-2026-11c', obj:"2.4" },
+    { domain:"threats", question:"Monitoring shows a single external IP trying the password \"Winter2026!\" against 3,000 different accounts, one attempt each, over several hours. Which attack is this?", options:["Password spraying", "Brute force against one account", "Credential stuffing", "Rainbow table attack"], correct:[0], why:"Password spraying tries one common password across many accounts to avoid lockouts.", src:'original-2026-11c', obj:"2.4" },
+    { domain:"threats", question:"A company finds that its web servers run many services that the application never uses, including FTP and Telnet. Which mitigation BEST addresses this?", options:["Hardening by disabling unnecessary services and ports", "Upgrading the servers to faster processors", "Enabling verbose logging on each service", "Adding the servers to a larger load balancer pool"], correct:[0], why:"Disabling unneeded services shrinks the attack surface, a core part of hardening.", src:'original-2026-11c', obj:"2.5" },
+    { domain:"threats", question:"Attackers compromise a popular industry forum that a target company's engineers visit, planting malware that infects visitors. Which attack type is this?", options:["Watering hole attack", "Business email compromise", "Pretexting phone call", "Shoulder surfing"], correct:[0], why:"A watering hole attack compromises a site the target group is known to visit.", src:'original-2026-11c', obj:"2.2" },
   ];
 
   const RAW_APLUS_CORE1_BANK = [
@@ -18477,6 +18896,7 @@
     document.getElementById('careerprep-tab').style.display = tab === 'careerprep' ? 'block' : 'none';
     document.getElementById('planner-tab').style.display = tab === 'planner' ? 'block' : 'none';
     document.getElementById('climastery-tab').style.display = tab === 'climastery' ? 'block' : 'none';
+    document.getElementById('readiness-tab').style.display = tab === 'readiness' ? 'block' : 'none';
 
     document.getElementById('home-panel').style.display = 'none';
     document.getElementById('notes-toolbar').style.display = 'none';
@@ -18493,6 +18913,7 @@
     document.getElementById('careerprep-panel').style.display = 'none';
     document.getElementById('planner-panel').style.display = 'none';
     document.getElementById('climastery-panel').style.display = 'none';
+    document.getElementById('readiness-panel').style.display = 'none';
     if(tab !== 'jobsim' && typeof jobSimActiveTimer !== 'undefined' && jobSimActiveTimer){ clearInterval(jobSimActiveTimer); jobSimActiveTimer = null; }
 
     const focusBtn = document.getElementById('focus-mode-btn');
@@ -18538,6 +18959,9 @@
     }else if(tab === 'climastery'){
       document.getElementById('climastery-panel').style.display = 'block';
       renderCliTab();
+    }else if(tab === 'readiness'){
+      document.getElementById('readiness-panel').style.display = 'block';
+      renderReadiness();
     }else if(tab === 'planner'){
       document.getElementById('planner-panel').style.display = 'block';
       renderStudyPlanner();
@@ -20179,6 +20603,10 @@
     const domainStats = {};
     const log = [];
     const exposureResults = [];
+    const ckEarly = examState.certKey || 'network_plus';
+    let priorQ = {};
+    try{ priorQ = (exposure.raw()[ckEarly] || {}).q || {}; }catch(e){}
+    const xs = { pbqCorrect: 0, pbqTotal: 0, retryAttempts: 0, retryCorrect: 0 };
     examState.questions.forEach((q, i) => {
       const grade = gradeExamQuestion(q, examState.selections[i]);
       const { isCorrect, chosenText, answerText, isPBQ } = grade;
@@ -20186,6 +20614,8 @@
       if(isCorrect) correctCount++;
       if(!isPBQ && !isCorrect) addToMissedQueue(q);
       if(!isPBQ && q.id) exposureResults.push({ id: q.id, correct: !!isCorrect, fresh: !!(q._exposure && q._exposure.fresh) });
+      if(isPBQ){ xs.pbqTotal++; if(isCorrect) xs.pbqCorrect++; }
+      else if(q.id && priorQ[q.id] && priorQ[q.id][4] > 0){ xs.retryAttempts++; if(isCorrect) xs.retryCorrect++; }
       if(q.type === 'cli' && q.example){ try{ cliTrainer.recordPbqResult(q.example, !!isCorrect); }catch(e){} }
       if(q.type === 'terminal' && q.lab){ try{
         const ans = (examState.selections[i] && examState.selections[i].answers) || [];
@@ -20205,10 +20635,16 @@
     const passingScore = examState.passingScore || 720;
     const passed = scaledScore >= passingScore;
 
-    recordExamAttempt(examState.certKey || 'network_plus', correctCount, total, scaledScore, passed, domainStats);
+    const fr0 = exposureResults.filter(r => r.fresh), rp0 = exposureResults.filter(r => !r.fresh);
+    if(examState.form){ xs.form = examState.form; xs.formAttempt = 1 + (progressHistory.examAttempts || []).filter(a => a.cert === ckEarly && a.form === examState.form).length; }
+    Object.assign(xs, { coldRun: !!(examState.exposureEntry && examState.exposureEntry.coldRun),
+      freshTotal: fr0.length, freshCorrect: fr0.filter(r => r.correct).length,
+      repeatTotal: rp0.length, repeatCorrect: rp0.filter(r => r.correct).length,
+      weightedPct: (function(){ const ds = (CERTIFICATIONS[ckEarly] || {}).domains || []; let w = 0, t = 0; ds.forEach(d => { const st = domainStats[d.key]; if(st && st.total){ w += d.weight; t += d.weight * st.correct / st.total; } }); return w ? t / w : null; })() });
+    recordExamAttempt(ckEarly, correctCount, total, scaledScore, passed, domainStats, xs);
     awardXp(50 + (passed ? 100 : 0));
     const certLbl = CERTIFICATIONS[examState.certKey] ? CERTIFICATIONS[examState.certKey].label : (examState.certKey || 'Network+');
-    logActivity(`🎓 Exam completed — ${certLbl} · ${scaledScore}/900 · ${passed ? 'PASSED' : 'not passed'}`);
+    logActivity(`🎓 Exam completed — ${certLbl} · unofficial est. ${scaledScore}/900 · ${passed ? 'at/above passing line' : 'below passing line'}`);
     let freshness = null;
     try{
       const ck = examState.certKey || 'network_plus';
@@ -20220,7 +20656,8 @@
       freshness = { entry: examState.exposureEntry, summary: sum,
         freshTotal: freshRes.length, freshCorrect: freshRes.filter(r => r.correct).length };
     }catch(e){ freshness = null; }
-    renderExamResults({ correctCount, total, scaledScore, passed, passingScore, domainStats, log, freshness });
+    renderExamResults({ correctCount, total, scaledScore, passed, passingScore, domainStats, log, freshness, weightedPct: xs.weightedPct, form: xs.form || null, formAttempt: xs.formAttempt || null });
+    try{ renderPracticeFormPicker(); }catch(e){}
   }
 
   function renderFreshnessPanel(fr){
@@ -20232,7 +20669,7 @@
       ? `On the ${fr.freshTotal} questions you had never seen, you scored ${fr.freshCorrect}/${fr.freshTotal} (${Math.round(fr.freshCorrect / fr.freshTotal * 100)}%). That is the most honest readiness signal here.`
       : 'Every question in this exam was one you had seen before, so this score may run high.';
     return `<div class="exam-freshness-box">
-      <div class="qz-config-label" style="margin-top:0;">Question freshness${e.coldRun ? ` · Cold Run #${e.run}` : ''}</div>
+      <div class="qz-config-label" style="margin-top:0;">Question freshness${e.form ? ` · Practice Exam ${e.form}` : ''}${e.coldRun ? ` · Cold Run #${e.run}` : ''}</div>
       <div class="exposure-stat-grid">
         ${exposureStat(e.fresh, 'never seen before')}
         ${exposureStat(e.repeated, 'repeated questions')}
@@ -20250,10 +20687,10 @@
     summaryEl.style.display = 'block';
     if(data.passed){
       fireConfetti(100);
-      showToast('🎉 Passed! Scaled score ' + data.scaledScore + '/900.');
-      botSay(`Nice work — ${data.scaledScore}/900, PASS. That mastery is real.`, 7000);
+      showToast('🎉 Above the passing line! Unofficial estimate ' + data.scaledScore + '/900.');
+      botSay(`Nice work — unofficial estimate ${data.scaledScore}/900, above the passing line. Check the never-seen score below too.`, 7000);
     }else{
-      botSay(`Scored ${data.scaledScore}/900 — not quite passing yet. Check the domain breakdown below and drill the weak spots.`, 8000);
+      botSay(`Unofficial estimate ${data.scaledScore}/900 — below the passing line. Check the domain breakdown below and drill the weak spots.`, 8000);
     }
 
     const domainRows = Object.keys(data.domainStats).map(key => {
@@ -20279,11 +20716,11 @@
 
     const scorePct = Math.round(data.scaledScore / 900 * 100);
     summaryEl.innerHTML = `
-      <h2>Exam Complete</h2>
-      ${statusBanner(data.passed ? 'good' : 'bad', `SCORE ${data.scaledScore} / 900 · PASSING ${data.passingScore} · ${data.passed ? 'PASS' : 'DID NOT PASS'}`)}
+      <h2>${data.form ? `Practice Exam ${data.form} complete · attempt ${data.formAttempt}` : 'Exam Complete'}</h2>
+      ${statusBanner(data.passed ? 'good' : 'bad', `UNOFFICIAL ESTIMATE ${data.scaledScore} / 900 · OFFICIAL PASSING ${data.passingScore} · ${data.passed ? 'AT OR ABOVE PASSING LINE' : 'BELOW PASSING LINE'}`)}
       <div style="display:flex; gap:20px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
-        ${gaugeSVG({ pct: scorePct, size: 96, color: data.passed ? 'var(--good)' : 'var(--danger)', valueText: data.scaledScore, fontSize: 20, label: 'Scaled score' })}
-        <div style="color:var(--muted); font-size:13px;">${data.correctCount} of ${data.total} questions correct (${Math.round(data.correctCount/data.total*100)}%)</div>
+        ${gaugeSVG({ pct: scorePct, size: 96, color: data.passed ? 'var(--good)' : 'var(--danger)', valueText: data.scaledScore, fontSize: 20, label: 'Unofficial estimate' })}
+        <div style="color:var(--muted); font-size:13px; max-width:520px;">Raw: ${data.correctCount} of ${data.total} correct (${Math.round(data.correctCount/data.total*100)}%)${data.weightedPct !== null && data.weightedPct !== undefined ? ` · Blueprint-weighted: ${Math.round(data.weightedPct * 100)}%` : ''}<br><span style="font-size:11px;">The 100–900 figure is a linear practice estimate (100 + raw% × 800), not an official CompTIA score or prediction. See the 🎯 Readiness tab for trends and fresh-question confidence.</span></div>
       </div>
       ${renderFreshnessPanel(data.freshness)}
       <div class="exam-domain-breakdown">${domainRows}</div>
@@ -20517,6 +20954,7 @@
   document.getElementById('exam-source-select').addEventListener('change', renderExamDomainCoverage);
   document.getElementById('exam-cert-select').addEventListener('change', renderExamDomainCoverage);
   document.getElementById('exam-cert-select').addEventListener('change', syncExamExposureControls);
+  document.getElementById('exam-coldrun-form').addEventListener('change', renderPracticeFormNote);
   (function initExamExposureControls(){
     const pol = document.getElementById('exam-policy-select');
     const sup = document.getElementById('exam-include-supplemental');
@@ -20579,8 +21017,9 @@
 
     examForceNoInstant = true; // a Cold Run never reveals answers until you submit
     examStartingColdRun = true; // counts toward the "last 3 Cold Runs" repetition window
+    examStartingForm = practiceFormsFor(certKey).length ? selectedPracticeForm() : null;
     try{ document.getElementById('exam-start-btn').click(); }
-    finally{ examForceNoInstant = false; examStartingColdRun = false; }
+    finally{ examForceNoInstant = false; examStartingColdRun = false; examStartingForm = null; }
   });
 
   document.getElementById('exam-allpbq-practice-btn').addEventListener('click', () => {
@@ -20667,18 +21106,19 @@
     let requestedCount = parseInt(countInput.value, 10) || 90;
     const count = Math.max(1, Math.min(requestedCount, poolSize));
 
-    const mcQuestions = selectReadyExamQuestions(count, useWeighting, source, certKey);
+    const formExam = examStartingForm !== null ? buildPracticeFormExam(certKey, examStartingForm) : null;
+    const mcQuestions = formExam ? formExam.mc : selectReadyExamQuestions(count, useWeighting, source, certKey);
 
-    let pbqQuestions = [];
+    let pbqQuestions = formExam ? formExam.pbq : [];
     const includePBQ = document.getElementById('exam-include-pbq').checked;
-    if(includePBQ && PBQ_BANK.some(p => pbqCertOf(p) === certKey)){
+    if(!formExam && includePBQ && PBQ_BANK.some(p => pbqCertOf(p) === certKey)){
       const pbqCount = Math.max(0, parseInt(document.getElementById('exam-pbq-count').value, 10) || 0);
       pbqQuestions = selectPBQs(pbqCount, certKey);
     }
     const questions = pbqQuestions.concat(mcQuestions);
     // every question shown counts as seen, even if the attempt is abandoned
     const exposureEntry = exposure.recordServed(certKey, mcQuestions.map(q => q.id).filter(Boolean),
-      pbqQuestions.map(q => q._pbqId).filter(Boolean), { coldRun: examStartingColdRun, policy: getExamPolicy() });
+      pbqQuestions.map(q => q._pbqId).filter(Boolean), { coldRun: examStartingColdRun, policy: formExam ? 'form' : getExamPolicy(), form: formExam ? examStartingForm : null });
     /* Re-shuffle multiple-choice option order fresh for this attempt, so
        position can't be memorized across retakes. Scoring compares answer
        TEXT (q.answer), not position, so this is purely cosmetic/anti-pattern-
@@ -20706,7 +21146,8 @@
       certLabel: cert.label,
       certKey: certKey,
       exposureEntry: exposureEntry,
-      isColdRun: examStartingColdRun
+      isColdRun: examStartingColdRun,
+      form: formExam ? examStartingForm : null
     };
     startExamTimer();
     document.getElementById('exam-intro').style.display = 'none';
@@ -21072,6 +21513,7 @@
     { tab: 'exam', icon: '🎓', title: 'Exam Mode', desc: 'Full-length, timed practice exam modeled on the real CompTIA blueprint.' },
     { tab: 'reconops', icon: '🎯', title: 'Recon Ops', desc: 'Fictional client briefings that have you run real nmap commands against your own devices.' },
     { tab: 'dashboard', icon: '📊', title: 'Dashboard', desc: 'See your quiz/exam history, domain mastery, and overall progress.' },
+    { tab: 'readiness', icon: '🎯', title: 'Readiness', desc: 'Fresh-question confidence, unofficial score estimate, Cold Run trend and weakest domains.' },
     { tab: 'cram', icon: '📋', title: 'Cram Sheet', desc: 'A condensed, printable term reference from your notes, grouped by domain.' }
   ];
 
@@ -21848,6 +22290,7 @@
   }
 
   document.getElementById('dashboard-refresh-btn').addEventListener('click', renderDashboard);
+  document.getElementById('readiness-refresh-btn').addEventListener('click', renderReadiness);
 
   /* ---------- Theme ---------- */
   const THEME_KEY = 'cybersec_theme_v1';
@@ -24100,7 +24543,7 @@
       Object.keys(byCert).forEach(certKey => {
         const a = byCert[certKey];
         const certLabel = CERTIFICATIONS[certKey] ? CERTIFICATIONS[certKey].label : certKey;
-        html += `<li>✅ Passed a practice exam for <b>${escapeHtml(certLabel)}</b> (scaled score ${a.scaledScore})</li>`;
+        html += `<li>✅ Passed a practice exam for <b>${escapeHtml(certLabel)}</b> (unofficial estimate ${a.scaledScore}/900)</li>`;
       });
       html += `</ul>`;
     }
