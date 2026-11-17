@@ -68,7 +68,7 @@ try{
   globalThis.__hooks.renderReadiness();
   const rd = document.getElementById('readiness-content').innerHTML.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   out.push('readiness: ' + rd.slice(0, 400));
-  globalThis.__ready = { labeled: /UNOFFICIAL ESTIMATE \d+ \/ 900 · OFFICIAL PASSING 750/.test(sumHtml) && !/>SCORE \d/.test(sumHtml) && /not an official CompTIA score/.test(sumHtml),
+  globalThis.__ready = { labeled: /UNOFFICIAL ESTIMATE \d+ \/ 900 · OFFICIAL PASSING 750/.test(sumHtml) && !/>SCORE \d/.test(sumHtml) && /not an official score/.test(sumHtml),
     attempts: attempts.filter(a => a.cert === 'security_plus'), rd };
   document.getElementById('exam-cert-select').value = 'network_plus';
   document.getElementById('exam-coldrun-btn').click(); const np = document.getElementById('exam-progress-text').textContent; document.getElementById('exam-submit-btn').click();

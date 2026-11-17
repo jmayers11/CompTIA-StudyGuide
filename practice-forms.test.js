@@ -98,7 +98,7 @@ try{
   ok('retake: same questions, attempt 2, all repeats (0 fresh)', /attempt 2/.test(a2.sum) && a2.ids.slice().sort().join() === a1.ids.slice().sort().join() && att()[1].freshTotal === 0 && att()[1].repeatTotal === 86);
   H.renderPracticeFormPicker();
   const opts1 = document.getElementById('exam-coldrun-form').innerHTML;
-  ok('picker shows attempts and best score for Exam 3', /Practice Exam 3: taken 2×, best 9\d%/.test(opts1) || /Practice Exam 3: taken 2×, best 100%/.test(opts1));
+  ok("picker shows attempts and best score for Exam 3", /Practice Exam 3: taken 2×, best \d+%/.test(opts1));
   const a3 = take('fresh', false);
   ok('Fresh exam still works and avoids the just-used Practice Exam 3', a3.ids.length === 86 && a3.ids.filter(id => f3ids.includes(id)).length === 0 && !/Practice Exam/.test(a3.sum.slice(0, 60)));
   const fr = take(4, false);

@@ -67,6 +67,11 @@ const fb = computeReadiness({ cert: 'security_plus', attempts: [legacy], domains
 ok('legacy attempts (no fresh fields) work and fall back to exposure history', fb.examsTaken === 1 && fb.freshTotal === 80 && fb.freshSource === 'exposure' && fb.latest.raw > 0.77);
 ok('legacy attempts with no history stay insufficient without errors', R([legacy]).level === 'insufficient');
 
+// points scoring (PBQs weighted): estimate and trend use points when present
+const pe = exam(0.9, 0.9, { extra: { points: 80, pointsPossible: 102, pbqPoints: 3, pbqPointsPossible: 16 } });
+const prr = R([pe]);
+ok('points-scored attempts: estimate = 100 + points% x 800, PBQ points aggregated', prr.latest.estimate === Math.round(100 + 800 * 80 / 102) && Math.abs(prr.latest.score - 80 / 102) < 1e-9 && Math.abs(prr.pbqPointsPct - 3 / 16) < 1e-9 && Math.abs(prr.trend[0].raw - 80 / 102) < 1e-9);
+ok('older attempts without points still use the raw percentage', R([exam(0.8, 0.8)]).latest.score === R([exam(0.8, 0.8)]).latest.raw);
 // wording rules
 const advice = [strong, border, inflated, empty].map(r => r.label + ' ' + r.advice).join(' ');
 ok('no labels claim an official result or a guaranteed pass', !/official|guarantee|will pass|you passed/i.test(advice));

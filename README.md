@@ -227,6 +227,21 @@ The keyword heuristic undercounts this bank's scenarios. It only recognizes part
 - **Tests:** `tests/practice-forms.test.js` (new, 23 checks) checks the blueprint split, no overlap, valid IDs, no near-duplicates and the PBQ mix. Then it takes Practice Exam 3 twice, a Fresh exam and Practice Exam 4 through the real buttons. Full regression: 26 + 28 + 14 + 20 + 16 + 23, all passing.
 - **Fix:** the Cold Run exam menu was hidden when the app loaded with the Security+ track saved, because the track set the certification without a change event. Opening Exam Mode now refreshes the menu, and a test checks this.
 
+### PBQ scoring: partial credit, weighting and large simulations
+- **Partial credit:** every PBQ is split into parts (pairs, steps, cells, slots, fields or log lines) and earns the share it got right.
+  - Ordering tasks credit the longest run of steps in the right relative order.
+  - In evidence (log-line) tasks, each wrong selection cancels a right one, so selecting everything earns nothing.
+  - Multiple-choice questions stay all-or-nothing, like the real exam.
+- **Weighting:** a multiple-choice question is worth 1 point. A PBQ is worth 3 points (up to 3 parts), 4 (4–7 parts), 5 (8 or more parts) or 6 (large simulation). In a practice exam the 4 PBQs carry about 15–17% of the points, while being 4% of the questions. CompTIA does not publish its weights; this models the common view that PBQs count for more.
+- **Score:** the unofficial 100–900 estimate is now 100 + points% × 800. Results show points, PBQ points, and how many questions were fully right. The review list tags each PBQ with its points and parts, and marks partly right PBQs in amber. Readiness and the practice-exam table use points. Older attempts keep their raw-percentage scores.
+- **10 large simulations** (original, `sim: true`), one in every practice exam, worth 6 points each:
+  - 7 terminal simulations with 6 steps each: a web shell on a portal, encoded PowerShell persistence, SQL injection through access logs, password spraying in Windows event logs, Linux hardening, ransomware triage, and cron-based C2 on a build server.
+  - 3 large configuration tasks: a three-SSID wireless design, secure protocol replacements with ports, and an identity policy.
+  - The terminal simulations stay out of Terminal Lab practice until you meet them in an exam, so your first attempt is fair. After that they unlock for review with hints.
+  - Practice exams that already had a small terminal PBQ swapped it for a CLI PBQ, so each exam keeps one terminal-style task. The swapped-out PBQs remain in the Fresh-exam pool.
+- **Fix:** in every Terminal Lab multiple-choice step, the right answer used to be the first option. The options are now shuffled in the data.
+- **Tests:** `tests/pbq-scoring.test.js` (new, 18 checks) covers partial credit per type, the points tiers, all 10 simulations, the Terminal Lab unlock, and a full practice exam scored in points. The readiness test gained 2 points checks (22). Full regression: 26 + 28 + 14 + 22 + 16 + 23 + 18, all passing.
+
 ### Notes
 - Practice scores are not an official CompTIA prediction. CompTIA's scaled scoring is proprietary.
 - Third-party practice exams (for example, Professor Messer's) are kept out of this app on purpose, so they stay independent readiness checks.
