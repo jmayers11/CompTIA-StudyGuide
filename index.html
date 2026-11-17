@@ -3643,6 +3643,36 @@
   .exposure-table th, .exposure-table td{ text-align:left; padding:5px 6px; border-bottom:1px solid var(--border); white-space:nowrap; }
   .exposure-table th{ color:var(--muted); font-weight:600; }
   .exam-freshness-box{ border:1px solid var(--border); border-radius:10px; padding:12px; margin:0 0 14px; }
+
+  /* Command-Line Mastery */
+  .cli-controls{ display:flex; flex-wrap:wrap; gap:10px 14px; align-items:flex-end; margin-top:12px; }
+  .cli-controls label{ display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted); }
+  .cli-controls select{ min-width:150px; }
+  .cli-controls .cli-pbq-row{ flex-direction:row; align-items:center; color:inherit; }
+  .cli-card{ border:1px solid var(--border); border-radius:12px; padding:14px; }
+  .cli-card-head{ display:flex; flex-wrap:wrap; gap:6px 12px; font-size:11.5px; color:var(--muted); margin-bottom:10px; }
+  .cli-plat-tag, .cli-supp-tag{ font-size:10.5px; padding:1px 7px; border-radius:999px; border:1px solid var(--border); color:var(--muted); }
+  .cli-front{ font-size:15px; line-height:1.5; margin-bottom:12px; }
+  .cli-big-cmd{ margin:4px 0 12px; }
+  .cli-big-cmd code{ font-size:17px; padding:6px 10px; border-radius:8px; border:1px solid var(--border); display:inline-block; }
+  .cli-term .pbq-cli-input-row input{ font-size:15px; }
+  .cli-term-line{ color:#e8ecf5; margin-bottom:6px; } .cli-term-line span{ color:#5fd97e; }
+  .cli-term-out{ color:#c9d1e3; background:transparent; margin:0 0 10px; font-size:12.5px; white-space:pre-wrap; word-break:break-word; font-family:'SFMono-Regular', Consolas, monospace; }
+  .cli-term-standalone{ background:#0b0e16; border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-top:10px; }
+  .cli-actions{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .cli-verdict{ margin-top:12px; font-weight:700; font-size:14px; }
+  .cli-ok{ color:var(--good); } .cli-bad{ color:var(--danger); } .cli-you{ font-weight:400; color:var(--muted); }
+  .cli-what, .cli-tip{ margin-top:10px; font-size:13.5px; line-height:1.55; }
+  .cli-rate-label{ margin-top:14px; font-size:12px; color:var(--muted); }
+  .cli-rate{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+  .cli-rate-btn{ flex:1 1 140px; }
+  .cli-suggest{ border-color:var(--accent) !important; box-shadow:0 0 0 1px var(--accent) inset; }
+  .cli-idle{ border:1px dashed var(--border); border-radius:12px; padding:14px; font-size:13.5px; line-height:1.55; }
+  .cli-idle-msg{ font-weight:700; margin-bottom:8px; }
+  .cli-idle .btn{ margin-top:10px; }
+  .cli-row-struggling td:first-child{ border-left:3px solid var(--danger); }
+  .cli-row-mastered td:first-child{ border-left:3px solid var(--good); }
+  .cli-ref-what{ white-space:normal !important; min-width:260px; }
 </style>
 </head>
 <body>
@@ -3737,6 +3767,7 @@
       <div class="tab-group">
         <button class="tab-btn" data-tab="notes" title="Browse, search, and edit your study notes by module and tag">📝 Notes</button>
         <button class="tab-btn" data-tab="flashcards" title="Spaced-repetition flashcards — rate each card so due-for-review timing adapts to you">🗂️ Flashcards</button>
+        <button class="tab-btn" data-tab="climastery" title="Security+ Command-Line Mastery: type-the-command flashcards with spaced repetition, a simulated terminal and progress per command">⌨️ CLI Mastery</button>
         <button class="tab-btn" data-tab="planner" title="Enter your exam date and this builds a day-by-day study schedule weighted toward your weakest domains">🗓️ Study Planner</button>
       </div>
       <div class="tab-group-label">Practice</div>
@@ -3796,6 +3827,11 @@
     <button id="dashboard-refresh-btn" class="btn" style="width:100%; margin-top:14px;">🔄 Refresh</button>
   </div>
 
+  <div id="climastery-tab" style="display:none;">
+    <div class="qz-pool-info" style="margin-top:14px;">Learn the commands Security+ PBQs expect: recognize them, recall them, type them and read their output. Typed answers are checked against accepted variants (flag order, sudo, Windows case); nothing is executed.</div>
+    <div class="qz-pool-info" style="margin-top:10px;"><strong>Modes</strong><br>A · description → command<br>B · command → what it does<br>C · scenario → command<br>D · fill in the missing option<br>E · simulated terminal task</div>
+    <div class="qz-pool-info" style="margin-top:10px;">After each card, rate it: <strong>Didn't Know</strong> (back in ~10 minutes), <strong>Struggled</strong> (short gap) or <strong>I Know This</strong> (gap grows). Keys 1/2/3 also work.</div>
+  </div>
   <div id="planner-tab" style="display:none;">
     <div class="qz-pool-info" style="margin-top:14px;">Enter your exam date and available study time — this builds a day-by-day schedule that spends more time on the domains where your quiz/exam accuracy is lowest (or unknown), with the final stretch reserved for review and full-length practice exams.</div>
     <select id="planner-cert-select" class="tag-module-select" style="margin-top:10px;" aria-label="Study planner certification"></select>
@@ -4242,6 +4278,21 @@
       <div id="careerprep-content"></div>
     </div>
 
+    <div id="climastery-panel" style="display:none;">
+      <h2>⌨️ Security+ Command-Line Mastery</h2>
+      <div class="qz-pool-info" style="margin-top:0;">Build the reflex PBQs test: see a situation, know the command, type it correctly, read the output. SY0-701 doesn't publish a command list, so <em>core</em> marks the commands most useful for Security+ investigation and hardening tasks.</div>
+      <div class="cli-controls">
+        <label>Platform<select id="cli-plat"><option value="all">Windows + Linux</option><option value="windows">Windows</option><option value="linux">Linux</option></select></label>
+        <label>Commands<select id="cli-scope"><option value="core">Core only</option><option value="all">Core + supplemental</option></select></label>
+        <label>Mode<select id="cli-mode"><option value="mixed">Mixed (all five modes)</option><option value="A">A · Recognition</option><option value="B">B · Reverse recall</option><option value="C">C · Scenario</option><option value="D">D · Completion</option><option value="E">E · Terminal</option></select></label>
+        <label class="qz-checkbox-row cli-pbq-row"><input type="checkbox" id="cli-pbq-priority" checked> <span>Commands I missed in PBQs come first</span></label>
+        <button type="button" class="btn primary" id="cli-start-btn">Start session</button>
+      </div>
+      <div id="cli-summary" class="exposure-stat-grid" style="margin-top:12px;"></div>
+      <div id="cli-card-area" style="margin-top:14px;"></div>
+      <details class="exposure-details" id="cli-progress-details"><summary>📈 Progress by command</summary><div id="cli-progress"></div></details>
+      <details class="exposure-details"><summary>📖 Command reference</summary><div id="cli-reference"></div></details>
+    </div>
     <div id="planner-panel" style="display:none;">
       <div id="planner-content"></div>
     </div>
@@ -4631,6 +4682,206 @@
     if(row) row.style.display = getActiveCert() === 'security_plus' ? '' : 'none';
     renderExposureDashboard();
   }
+
+  /* CLI_DATA_START */
+  /* Security+ Command-Line Mastery commands. SY0-701's objectives do not list specific commands;
+     "core" marks the ones most useful for Security+ investigation and hardening PBQs (objective
+     shown in obj), "supplemental" the useful-but-secondary ones. accept = allowlist of valid typed
+     answers (regex, case-insensitive on Windows) or flag sets in any order. */
+  const CLI_COMMANDS = [{"id": "win-ipconfig", "cmd": "ipconfig", "core": true, "obj": "4.9", "what": "Shows each network adapter's IPv4/IPv6 address, subnet mask and default gateway.", "recog": "Which Windows command quickly shows each adapter's IP address, subnet mask and default gateway?", "scen": "A user says \"the internet is down.\" You want a fast first look at whether their PC even has a valid IP address and gateway. What do you run?", "lab": "A help-desk ticket says a laptop cannot reach any internal site. Check whether the laptop received a usable IP address from DHCP.", "accept": ["^ipconfig$"], "out": "Windows IP Configuration\n\nEthernet adapter Ethernet0:\n\n   Connection-specific DNS Suffix  . :\n   Autoconfiguration IPv4 Address. . : 169.254.112.7\n   Subnet Mask . . . . . . . . . . . : 255.255.0.0\n   Default Gateway . . . . . . . . . :", "tip": "169.254.x.x (APIPA) with no gateway means DHCP failed. Check the cable/VLAN or DHCP server, not the browser.", "plat": "windows", "comp": null, "ex": "ipconfig"}, {"id": "win-ipconfig-all", "cmd": "ipconfig /all", "core": true, "obj": "4.9", "what": "Full adapter detail: MAC address, DHCP on/off, DHCP server, lease times and the DNS servers in use.", "recog": "Which Windows command shows an adapter's MAC address, DHCP server and configured DNS servers?", "scen": "You suspect a workstation was handed a rogue DNS server. Which command shows exactly which DNS servers it is using?", "lab": "Several users are landing on a fake login page. Confirm which DNS servers this workstation was given and which DHCP server handed them out.", "accept": ["^ipconfig [/-]all$"], "comp": {"show": "ipconfig /___", "ans": ["all"]}, "out": "Ethernet adapter Ethernet0:\n\n   Physical Address. . . . . . . . . : 00-1A-2B-3C-4D-5E\n   DHCP Enabled. . . . . . . . . . . : Yes\n   IPv4 Address. . . . . . . . . . . : 10.20.30.45(Preferred)\n   Default Gateway . . . . . . . . . : 10.20.30.1\n   DHCP Server . . . . . . . . . . . : 10.20.30.250\n   DNS Servers . . . . . . . . . . . : 203.0.113.66", "tip": "The DHCP server (10.20.30.250) and DNS server (203.0.113.66) are not your corporate servers: a rogue DHCP server is pushing a malicious DNS server.", "plat": "windows", "ex": "ipconfig /all"}, {"id": "win-flushdns", "cmd": "ipconfig /flushdns", "core": true, "obj": "4.5", "what": "Clears the Windows DNS resolver cache so names are looked up fresh.", "recog": "Which Windows command clears the local DNS resolver cache?", "scen": "A server's DNS record was changed an hour ago, but one workstation still connects to the old IP address. What should you try on that workstation?", "lab": "After you removed a poisoned DNS entry on the corporate DNS server, a workstation still resolves the bad address from its local cache. Clear it.", "accept": ["^ipconfig [/-]flushdns$"], "comp": {"show": "ipconfig /________", "ans": ["flushdns"]}, "out": "Windows IP Configuration\n\nSuccessfully flushed the DNS Resolver Cache.", "tip": "Flushing only fixes the local cache. If the DNS server itself is poisoned, fix the server first.", "plat": "windows", "ex": "ipconfig /flushdns"}, {"id": "win-ping", "cmd": "ping", "core": true, "obj": "4.9", "what": "Sends ICMP echo requests to test basic reachability and round-trip time. Windows sends 4 by default; -n sets the count, -t pings until stopped.", "recog": "Which command tests basic IP reachability to a host by sending ICMP echo requests?", "scen": "Before blaming the firewall, you want to confirm a workstation can reach its default gateway at 10.20.30.1. What do you run?", "lab": "Confirm that this Windows host can reach its default gateway at 10.20.30.1.", "accept": ["^ping( -[nt]( \\d+)?| -[a46])* 10\\.20\\.30\\.1$"], "comp": {"show": "ping -_ 10.20.30.1   (keep pinging until Ctrl+C)", "ans": ["t"]}, "out": "Pinging 10.20.30.1 with 32 bytes of data:\nReply from 10.20.30.1: bytes=32 time<1ms TTL=255\nReply from 10.20.30.1: bytes=32 time<1ms TTL=255\nReply from 10.20.30.1: bytes=32 time<1ms TTL=255\nReply from 10.20.30.1: bytes=32 time<1ms TTL=255\n\nPing statistics for 10.20.30.1:\n    Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),", "tip": "Gateway replies, so local connectivity is fine; look further out (routing, DNS, firewall). A failed ping alone does not prove a host is down: many firewalls block ICMP.", "plat": "windows", "ex": "ping 10.20.30.1"}, {"id": "win-tracert", "cmd": "tracert", "core": true, "obj": "4.9", "what": "Lists each router hop to a destination with its latency (Windows). -d skips name lookups so it runs faster.", "recog": "Which Windows command shows every router hop between you and a destination?", "scen": "Users report slow access to a cloud app. You want to see where along the path the delay starts. Which Windows command?", "lab": "Map the path from this workstation to 8.8.8.8 without resolving hop names.", "accept": ["^tracert( -d)? 8\\.8\\.8\\.8$"], "comp": {"show": "tracert -_ 8.8.8.8   (don't resolve hop names)", "ans": ["d"]}, "out": "Tracing route to 8.8.8.8 over a maximum of 30 hops\n\n  1    <1 ms    <1 ms    <1 ms  10.20.30.1\n  2     3 ms     2 ms     3 ms  198.51.100.1\n  3     *        *        *     Request timed out.\n  4    12 ms    11 ms    12 ms  8.8.8.8\n\nTrace complete.", "tip": "A single * * * hop that is followed by good hops usually just means that router does not answer ICMP. It is not where the problem is.", "plat": "windows", "ex": "tracert 8.8.8.8"}, {"id": "win-nslookup", "cmd": "nslookup", "core": true, "obj": "4.9", "what": "Queries DNS for a name or record type. -type= (or -q=) selects records such as MX, TXT or NS.", "recog": "Which command, available on both Windows and Linux, queries DNS to resolve a hostname or look up a record type?", "scen": "You want to see which mail servers receive email for example.com. Which command and option do you use on Windows?", "lab": "Look up the mail exchanger (MX) records for example.com from this Windows host.", "accept": ["^nslookup -(type|q|querytype)=mx example\\.com$"], "comp": {"show": "nslookup -type=__ example.com   (mail servers)", "ans": ["mx"]}, "out": "Server:  dns1.corp.example.com\nAddress:  10.20.30.10\n\nNon-authoritative answer:\nexample.com     MX preference = 10, mail exchanger = mail.example.com\nexample.com     MX preference = 20, mail exchanger = mail2.example.com", "tip": "The lower preference number is tried first. MX lookups come up when checking email routing or spoofing controls.", "plat": "windows", "ex": "nslookup -type=mx example.com"}, {"id": "win-netstat", "cmd": "netstat", "core": true, "obj": "4.9", "what": "Lists active TCP connections (local and remote address and state). Add -a for listening ports, -n for numbers, -o for PIDs.", "recog": "Which command lists the active TCP connections on a Windows host?", "scen": "You want a quick list of the outbound connections a Windows server currently has open. Which basic command shows them?", "lab": null, "accept": ["^netstat$"], "out": "Active Connections\n\n  Proto  Local Address          Foreign Address        State\n  TCP    10.20.30.45:50512      52.96.88.162:https     ESTABLISHED\n  TCP    10.20.30.45:50544      10.20.30.12:microsoft-ds  ESTABLISHED", "tip": "Plain netstat shows no listening ports and no PIDs. In an investigation you almost always want netstat -ano.", "plat": "windows", "comp": null, "ex": "netstat"}, {"id": "win-netstat-ano", "cmd": "netstat -ano", "core": true, "obj": "4.9", "what": "All connections and listening ports (-a), numeric addresses (-n) and the owning process ID (-o).", "recog": "Which Windows command displays all active connections and listening ports together with the process ID that owns each one?", "scen": "EDR flags a workstation listening on an unusual high port. Which command shows that port along with the process ID that owns it?", "lab": "A Windows workstation is suspected of running a backdoor. Find which process ID owns any unexpected listening port.", "accept": [{"cmd": "netstat", "flags": "ano"}], "comp": {"show": "netstat -___", "ans": [{"flags": "ano"}]}, "out": "Active Connections\n\n  Proto  Local Address          Foreign Address        State           PID\n  TCP    0.0.0.0:135            0.0.0.0:0              LISTENING       1012\n  TCP    0.0.0.0:4444           0.0.0.0:0              LISTENING       4412\n  TCP    10.20.30.45:50512      52.96.88.162:443       ESTABLISHED     6120\n  UDP    0.0.0.0:5353           *:*                                    2290", "tip": "Port 4444 listening and owned by PID 4412 is suspicious (a common reverse-shell port). Next step: tasklist /fi \"PID eq 4412\" to name the process.", "plat": "windows", "ex": "netstat -ano"}, {"id": "win-whoami", "cmd": "whoami", "core": true, "obj": "4.6", "what": "Prints the domain\\user name of the current session.", "recog": "Which command prints the user account your current session is running as?", "scen": "You have a command prompt on a compromised host and need to know which account the attacker's shell runs under. What do you type first?", "lab": "You opened a shell on a web server during an investigation. Confirm which account the shell is running as.", "accept": ["^whoami$"], "out": "corp\\web-svc", "tip": "A web service account running an interactive shell is itself an indicator of compromise. Check its privileges next.", "plat": "windows", "comp": null, "ex": "whoami"}, {"id": "win-whoami-priv", "cmd": "whoami /priv", "core": true, "obj": "4.6", "what": "Lists the privileges held by the current token and whether each is enabled.", "recog": "Which Windows command lists the privileges (such as SeDebugPrivilege) held by the current account?", "scen": "You need to know whether a compromised service account holds powerful rights such as SeImpersonatePrivilege. Which command shows that?", "lab": "Check whether the account this shell runs as holds dangerous privileges such as SeDebugPrivilege or SeImpersonatePrivilege.", "accept": ["^whoami [/-]priv$"], "comp": {"show": "whoami /____", "ans": ["priv"]}, "out": "PRIVILEGES INFORMATION\n----------------------\n\nPrivilege Name                Description                               State\n============================= ========================================= ========\nSeChangeNotifyPrivilege       Bypass traverse checking                  Enabled\nSeImpersonatePrivilege        Impersonate a client after authentication Enabled\nSeDebugPrivilege              Debug programs                            Enabled", "tip": "SeDebugPrivilege and SeImpersonatePrivilege on a service account are common routes to SYSTEM. Remove them (least privilege).", "plat": "windows", "ex": "whoami /priv"}, {"id": "win-arp", "cmd": "arp -a", "core": true, "obj": "2.4", "what": "Shows the local ARP cache: which MAC address each IP on the subnet maps to.", "recog": "Which command shows the cache of IP-to-MAC address mappings on a host?", "scen": "You suspect ARP poisoning on a subnet. Which command lets you check whether two IPs map to the same MAC address?", "lab": "Traffic from this host may be passing through an on-path attacker. Inspect the ARP cache.", "accept": ["^arp -[ag]$"], "comp": {"show": "arp -_", "ans": ["a", "g"]}, "out": "Interface: 10.20.30.45 --- 0xb\n  Internet Address      Physical Address      Type\n  10.20.30.1            00-1a-2b-3c-4d-5e     dynamic\n  10.20.30.12           00-1a-2b-3c-4d-5e     dynamic\n  10.20.30.255          ff-ff-ff-ff-ff-ff     static", "tip": "The gateway (10.20.30.1) and 10.20.30.12 share one MAC address. That pattern points to ARP poisoning by 10.20.30.12.", "plat": "windows", "ex": "arp -a"}, {"id": "win-route-print", "cmd": "route print", "core": false, "obj": "4.9", "what": "Displays the Windows routing table, including the default route.", "recog": "Which Windows command displays the local routing table?", "scen": "A VPN client may be adding a route that sends all traffic through the tunnel. Which Windows command shows the routing table?", "lab": "Confirm which gateway this Windows host uses for its default route (0.0.0.0).", "accept": ["^route print$", "^netstat -r$"], "comp": {"show": "route _____", "ans": ["print"]}, "out": "IPv4 Route Table\n===========================================================================\nActive Routes:\nNetwork Destination        Netmask          Gateway       Interface  Metric\n          0.0.0.0          0.0.0.0       10.20.30.1    10.20.30.45     25\n        10.20.30.0    255.255.255.0         On-link     10.20.30.45    281", "tip": "The 0.0.0.0/0.0.0.0 row is the default route. netstat -r shows the same table.", "plat": "windows", "ex": "route print"}, {"id": "win-net-user", "cmd": "net user", "core": true, "obj": "4.6", "what": "Lists local user accounts. \"net user <name>\" shows one account's details.", "recog": "Which Windows command lists all local user accounts on a machine?", "scen": "During an audit you need to see every local account on a workstation, to spot ones that should not exist. Which command?", "lab": "An attacker may have created a persistence account on this workstation. List the local user accounts.", "accept": ["^net user$"], "comp": {"show": "net ____", "ans": ["user"]}, "out": "User accounts for \\\\WKS-114\n\n-------------------------------------------------------------------------------\nAdministrator            DefaultAccount           Guest\njsmith                   support_tmp              WDAGUtilityAccount\nThe command completed successfully.", "tip": "\"support_tmp\" is not a standard account. Check when it was created and whether it is in the Administrators group.", "plat": "windows", "ex": "net user"}, {"id": "win-net-localgroup", "cmd": "net localgroup administrators", "core": true, "obj": "4.6", "what": "Lists members of a local group, most often Administrators.", "recog": "Which Windows command lists the members of the local Administrators group?", "scen": "You want to verify least privilege on a workstation by checking who is in its local Administrators group. Which command?", "lab": "Check whether any unexpected account has been added to this workstation's local Administrators group.", "accept": ["^net localgroup administrators$"], "comp": {"show": "net __________ administrators", "ans": ["localgroup"]}, "out": "Alias name     administrators\nComment        Administrators have complete and unrestricted access to the computer/domain\n\nMembers\n\n-------------------------------------------------------------------------------\nAdministrator\nCORP\\Domain Admins\nsupport_tmp\nThe command completed successfully.", "tip": "support_tmp being a local admin confirms the persistence account has full control. Disable it, then investigate how it was created.", "plat": "windows", "ex": "net localgroup administrators"}, {"id": "win-gpresult", "cmd": "gpresult /r", "core": true, "obj": "4.5", "what": "Shows which Group Policy Objects were applied to the computer and user (a summary report).", "recog": "Which Windows command shows which Group Policy Objects were applied to the computer and user?", "scen": "A new hardening GPO should be blocking USB storage, but one laptop still allows it. Which command shows which GPOs that laptop actually applied?", "lab": "Verify whether the \"Workstation Baseline\" GPO is being applied to this computer.", "accept": ["^gpresult [/-][rz]$", "^gpresult [/-]scope (computer|user) [/-][rz]$"], "comp": {"show": "gpresult /_", "ans": ["r", "z"]}, "out": "COMPUTER SETTINGS\n------------------\n    Applied Group Policy Objects\n    -----------------------------\n        BitLocker Enforcement\n        Default Domain Policy\n\n    The following GPOs were not applied because they were filtered out\n    -------------------------------------------------------------------\n        Workstation Baseline - Win11\n            Filtering:  Denied (Security)", "tip": "The baseline GPO is filtered out by security filtering, so the laptop never receives it. Fix the GPO's security filtering, then run gpupdate /force.", "plat": "windows", "ex": "gpresult /r"}, {"id": "win-sfc", "cmd": "sfc /scannow", "core": false, "obj": "4.8", "what": "System File Checker: verifies protected Windows system files and repairs corrupted ones.", "recog": "Which Windows command scans and repairs protected system files?", "scen": "After malware removal, some Windows components keep crashing. Which built-in command checks and repairs protected system files?", "lab": "Check this workstation's protected system files for corruption and repair them.", "accept": ["^sfc [/-]scannow$"], "comp": {"show": "sfc /_______", "ans": ["scannow"]}, "out": "Beginning system scan.  This process will take some time.\nVerification 100% complete.\n\nWindows Resource Protection found corrupt files and successfully repaired them.", "tip": "Useful during recovery. Replaced system files are also an IOC worth recording in the incident notes.", "plat": "windows", "ex": "sfc /scannow"}, {"id": "win-tasklist", "cmd": "tasklist", "core": true, "obj": "4.9", "what": "Lists running processes with their PIDs. /fi filters (for example \"PID eq 4412\") and /svc shows the services inside each process.", "recog": "Which Windows command lists running processes and their process IDs?", "scen": "netstat -ano showed PID 4412 listening on port 4444. Which command do you use to find the program name behind that PID?", "lab": "netstat -ano showed PID 4412 listening on port 4444. Identify the process that owns PID 4412.", "accept": ["^tasklist$", "^tasklist /fi [\"\\']pid eq 4412[\"\\']$", "^tasklist /svc /fi [\"\\']pid eq 4412[\"\\']$"], "comp": {"show": "tasklist /___   (show the services hosted in each process)", "ans": ["svc"]}, "out": "Image Name                     PID Session Name        Session#    Mem Usage\n========================= ======== ================ =========== ============\nupdater.exe                   4412 Console                    1      9,880 K", "tip": "\"updater.exe\" listening on 4444 with no matching software installed is a backdoor indicator. Isolate the host and preserve evidence before killing the process.", "plat": "windows", "ex": "tasklist /fi \"PID eq 4412\""}, {"id": "lin-ip-addr", "cmd": "ip addr", "core": true, "obj": "4.9", "what": "Shows every interface with its MAC (link/ether) and IP addresses. Modern replacement for ifconfig; \"ip a\" is the short form.", "recog": "Which modern Linux command shows each interface's IP and MAC addresses?", "scen": "You SSH into a Linux server and need to confirm which IP address eth0 actually has. Which command, the modern replacement for ifconfig?", "lab": "Confirm the IP address and MAC address assigned to this server's eth0 interface.", "accept": ["^(sudo )?ip (addr|a|address)( show)?( eth0| dev eth0)?$"], "comp": {"show": "ip ____", "ans": ["addr", "a", "address"]}, "out": "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN\n    inet 127.0.0.1/8 scope host lo\n2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP\n    link/ether 52:54:00:3a:7c:19 brd ff:ff:ff:ff:ff:ff\n    inet 10.20.40.15/24 brd 10.20.40.255 scope global eth0", "tip": "eth0 is 10.20.40.15/24 with MAC 52:54:00:3a:7c:19. You need both to match DHCP logs and switch tables.", "plat": "linux", "ex": "ip addr"}, {"id": "lin-ip-route", "cmd": "ip route", "core": false, "obj": "4.9", "what": "Shows the Linux routing table, including the default gateway.", "recog": "Which Linux command shows the routing table and default gateway?", "scen": "A Linux host can reach its own subnet but nothing beyond it. Which command shows whether it has a default route?", "lab": "Check which default gateway this Linux server is using.", "accept": ["^(sudo )?ip (route|r)( show)?$"], "comp": {"show": "ip _____", "ans": ["route", "r"]}, "out": "default via 10.20.40.1 dev eth0 proto static\n10.20.40.0/24 dev eth0 proto kernel scope link src 10.20.40.15", "tip": "\"default via 10.20.40.1\" is the gateway. If that line is missing, the host can only reach its own subnet.", "plat": "linux", "ex": "ip route"}, {"id": "lin-ping", "cmd": "ping -c", "core": true, "obj": "4.9", "what": "Sends ICMP echo requests. Linux pings forever by default, so -c sets how many to send.", "recog": "On Linux, which ping option sends a set number of echo requests and then stops?", "scen": "On a Linux box, ping runs until you press Ctrl+C. How do you send exactly 4 pings to 8.8.8.8?", "lab": "Send exactly 4 ICMP echo requests from this Linux server to 8.8.8.8.", "accept": ["^ping -c ?4 8\\.8\\.8\\.8$", "^ping 8\\.8\\.8\\.8 -c ?4$"], "comp": {"show": "ping -_ 4 8.8.8.8", "ans": ["c"]}, "out": "PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.\n64 bytes from 8.8.8.8: icmp_seq=1 ttl=117 time=11.8 ms\n64 bytes from 8.8.8.8: icmp_seq=2 ttl=117 time=11.6 ms\n64 bytes from 8.8.8.8: icmp_seq=3 ttl=117 time=11.9 ms\n64 bytes from 8.8.8.8: icmp_seq=4 ttl=117 time=11.7 ms\n\n--- 8.8.8.8 ping statistics ---\n4 packets transmitted, 4 received, 0% packet loss, time 3004ms", "tip": "Windows uses -n for the count; Linux uses -c. That difference is a classic PBQ trap.", "plat": "linux", "ex": "ping -c 4 8.8.8.8"}, {"id": "lin-traceroute", "cmd": "traceroute", "core": true, "obj": "4.9", "what": "Lists each router hop to a destination (Linux/macOS name; Windows uses tracert). -n skips DNS lookups.", "recog": "What is the Linux equivalent of the Windows tracert command?", "scen": "From a Linux server you want to see each hop to 8.8.8.8, showing IP addresses only. Which command?", "lab": "Trace the path from this Linux server to 8.8.8.8 without resolving hop names.", "accept": ["^(sudo )?traceroute( -n)? 8\\.8\\.8\\.8$"], "comp": {"show": "traceroute -_ 8.8.8.8   (numeric only)", "ans": ["n"]}, "out": "traceroute to 8.8.8.8 (8.8.8.8), 30 hops max, 60 byte packets\n 1  10.20.40.1  0.412 ms  0.388 ms  0.371 ms\n 2  198.51.100.1  2.901 ms  2.877 ms  2.850 ms\n 3  * * *\n 4  8.8.8.8  11.902 ms  11.880 ms  11.861 ms", "tip": "Same reading as tracert: a silent hop followed by good hops is not where the problem is.", "plat": "linux", "ex": "traceroute 8.8.8.8"}, {"id": "lin-dig", "cmd": "dig", "core": true, "obj": "4.5", "what": "Detailed DNS lookup tool. Put the record type after the name (MX, TXT, NS); +short trims the output.", "recog": "Which Linux DNS tool shows full query detail and takes the record type after the name, as in \"example.com TXT\"?", "scen": "You want to verify the SPF record that tells receivers which servers may send mail for example.com. Which dig command?", "lab": "Check the SPF policy published for example.com. SPF lives in a TXT record.", "accept": ["^dig (\\+short )?(example\\.com (txt|TXT)|(txt|TXT) example\\.com)( \\+short)?$"], "comp": {"show": "dig example.com ___   (record type that holds SPF)", "ans": ["txt", "TXT"]}, "out": ";; ANSWER SECTION:\nexample.com.\t\t3600\tIN\tTXT\t\"v=spf1 include:_spf.mail.example.com -all\"", "tip": "\"-all\" is a hard fail: mail from servers not listed should be rejected. DKIM keys and DMARC policies are TXT records too (DMARC at _dmarc.example.com).", "plat": "linux", "ex": "dig example.com TXT"}, {"id": "lin-nslookup", "cmd": "nslookup", "core": false, "obj": "4.9", "what": "DNS lookup on Linux too. Given an IP address, it performs a reverse (PTR) lookup.", "recog": "Which DNS command works on both Windows and Linux and, when given an IP address, returns its hostname?", "scen": "A firewall log shows connections to 8.8.8.8 and you want the hostname behind that address. Which simple command, the same on Linux and Windows?", "lab": "Do a reverse lookup on 8.8.8.8 to find its hostname.", "accept": ["^nslookup 8\\.8\\.8\\.8$", "^dig -x 8\\.8\\.8\\.8( \\+short)?$", "^host 8\\.8\\.8\\.8$"], "out": "8.8.8.8.in-addr.arpa\tname = dns.google.", "tip": "Reverse lookups help put a name to IPs in logs, but PTR records are set by whoever owns the IP, so they can be misleading.", "plat": "linux", "comp": null, "ex": "nslookup 8.8.8.8"}, {"id": "lin-ss", "cmd": "ss -tulpn", "core": true, "obj": "4.9", "what": "Lists TCP (-t) and UDP (-u) listening (-l) sockets with process info (-p), numeric (-n). Modern replacement for netstat.", "recog": "Which modern Linux command lists listening TCP and UDP ports together with the owning process?", "scen": "You want to know which processes are listening for connections on a Linux server, with numeric ports. Which ss command?", "lab": "A Linux web server may have a bind shell. List all listening TCP and UDP sockets with the owning process, numeric ports only.", "accept": [{"cmd": "ss", "flags": "tulpn", "sudo": true}, {"cmd": "ss", "flags": "tlpn", "sudo": true}], "comp": {"show": "ss -_____", "ans": [{"flags": "tulpn"}]}, "out": "Netid State  Recv-Q Send-Q Local Address:Port  Peer Address:Port Process\nudp   UNCONN 0      0            0.0.0.0:68         0.0.0.0:*     users:((\"dhclient\",pid=612,fd=6))\ntcp   LISTEN 0      128          0.0.0.0:22         0.0.0.0:*     users:((\"sshd\",pid=844,fd=3))\ntcp   LISTEN 0      5            0.0.0.0:31337      0.0.0.0:*     users:((\"nc\",pid=2290,fd=3))", "tip": "nc (netcat) listening on 31337 is a bind shell. Note PID 2290 and isolate the host before killing it.", "plat": "linux", "ex": "ss -tulpn"}, {"id": "lin-netstat", "cmd": "netstat -tulpn", "core": false, "obj": "4.9", "what": "Older (net-tools) way to list listening TCP/UDP ports with PID/program. Same flags as ss.", "recog": "On an older Linux system without ss, which netstat flags list listening TCP/UDP ports with their programs?", "scen": "An older Linux appliance lacks the ss command. How do you list its listening TCP/UDP ports with program names using netstat?", "lab": "This legacy Linux host has no ss. List listening TCP/UDP ports with the owning program using netstat.", "accept": [{"cmd": "netstat", "flags": "tulpn", "sudo": true}, {"cmd": "netstat", "flags": "tlpn", "sudo": true}], "comp": {"show": "netstat -_____", "ans": [{"flags": "tulpn"}]}, "out": "Proto Recv-Q Send-Q Local Address    Foreign Address  State   PID/Program name\ntcp        0      0 0.0.0.0:22       0.0.0.0:*        LISTEN  844/sshd\ntcp        0      0 0.0.0.0:23       0.0.0.0:*        LISTEN  901/inetd", "tip": "Port 23 is Telnet, an insecure cleartext protocol. Disable it and use SSH.", "plat": "linux", "ex": "netstat -tulpn"}, {"id": "lin-grep", "cmd": "grep", "core": true, "obj": "4.9", "what": "Searches text for a pattern. -i ignores case, -c counts matches, -v inverts the match, -r searches folders.", "recog": "Which Linux command searches files for lines that match a pattern?", "scen": "You need every failed SSH login in /var/log/auth.log. Which command pulls out the lines containing \"Failed password\"?", "lab": "Pull every failed SSH password attempt out of /var/log/auth.log.", "accept": ["^(sudo )?grep( -[icnE]+)* [\"\\']?[Ff]ailed password[\"\\']? /var/log/auth\\.log$", "^(sudo )?grep( -[icnE]+)* [Ff]ailed /var/log/auth\\.log$"], "comp": {"show": "grep -_ \"failed password\" /var/log/auth.log   (ignore case)", "ans": ["i"]}, "out": "Nov 17 02:14:07 web01 sshd[3121]: Failed password for root from 203.0.113.50 port 51122 ssh2\nNov 17 02:14:09 web01 sshd[3121]: Failed password for root from 203.0.113.50 port 51122 ssh2\nNov 17 02:14:12 web01 sshd[3125]: Failed password for invalid user admin from 203.0.113.50 port 51140 ssh2", "tip": "Many failures from one IP (203.0.113.50) against root and \"admin\" in seconds is brute force. Check whether an \"Accepted password\" from that IP follows.", "plat": "linux", "ex": "grep \"Failed password\" /var/log/auth.log"}, {"id": "lin-cat", "cmd": "cat /etc/passwd", "core": true, "obj": "4.6", "what": "cat prints a file. /etc/passwd lists local accounts as user:x:UID:GID:comment:home:shell.", "recog": "Which file, viewed with cat, lists every local account on a Linux system?", "scen": "You suspect an attacker added a second root account. Which file do you print with cat to review all local accounts and their UIDs?", "lab": "Review the local accounts on this Linux server for any extra account with UID 0.", "accept": ["^(sudo )?cat /etc/passwd$", "^(sudo )?(less|more) /etc/passwd$", "^getent passwd$"], "comp": {"show": "cat /etc/______", "ans": ["passwd"]}, "out": "root:x:0:0:root:/root:/bin/bash\nalice:x:1001:1001:Alice Ng:/home/alice:/bin/bash\nbackup2:x:0:0::/home/backup2:/bin/bash", "tip": "backup2 has UID 0, so it is effectively a second root account. That is a persistence indicator. Password hashes live in /etc/shadow, readable by root only.", "plat": "linux", "ex": "cat /etc/passwd"}, {"id": "lin-tail", "cmd": "tail -f", "core": true, "obj": "4.9", "what": "Shows the end of a file. -f follows it live as new lines arrive; -n sets how many lines to show.", "recog": "Which Linux command and option let you watch a log file live as new entries are written?", "scen": "During an active incident you want to watch /var/log/auth.log update in real time. Which command?", "lab": "Watch /var/log/auth.log live while the user retries their login.", "accept": ["^(sudo )?tail (-f|-F|--follow) /var/log/auth\\.log$", "^(sudo )?tail -n ?\\d+ -f /var/log/auth\\.log$", "^(sudo )?tail -f -n ?\\d+ /var/log/auth\\.log$"], "comp": {"show": "tail -_ /var/log/auth.log   (follow live)", "ans": ["f", "F"]}, "out": "Nov 17 09:41:02 web01 sshd[4410]: Accepted publickey for alice from 10.20.40.88 port 50122 ssh2\nNov 17 09:41:30 web01 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/systemctl restart nginx", "tip": "The output keeps streaming until Ctrl+C. Here alice logged in with a key, then used sudo to restart nginx. That's normal if it matches a change ticket.", "plat": "linux", "ex": "tail -f /var/log/auth.log"}, {"id": "lin-chmod", "cmd": "chmod", "core": true, "obj": "4.6", "what": "Changes file permissions. Octal r=4, w=2, x=1 per owner/group/others (640 = rw-r-----), or symbolic such as o-rwx.", "recog": "Which Linux command changes a file's read/write/execute permissions?", "scen": "payroll.csv should be read/write for its owner, read-only for its group, and closed to everyone else. Which command sets that?", "lab": "Set payroll.csv so the owner can read and write, the group can only read, and others have no access.", "accept": ["^(sudo )?chmod (0?640|u=rw,g=r,o=|u=rw,g=r,o-rwx) payroll\\.csv$"], "comp": {"show": "chmod ___ payroll.csv   (rw- r-- ---)", "ans": ["640", "0640"]}, "out": "$ ls -l payroll.csv\n-rw-r----- 1 hr hr 4210 Nov 17 09:50 payroll.csv", "tip": "rw- = 6, r-- = 4, --- = 0, giving 640. World-readable (xx4) sensitive files are a frequent PBQ finding.", "plat": "linux", "ex": "chmod 640 payroll.csv"}, {"id": "lin-chown", "cmd": "chown", "core": true, "obj": "4.6", "what": "Changes a file's owner and, with user:group, its group.", "recog": "Which Linux command changes the owner (and group) of a file?", "scen": "report.txt must belong to user alice and the finance group. Which command makes that change?", "lab": "Make alice the owner and finance the group of report.txt.", "accept": ["^(sudo )?chown alice:finance report\\.txt$", "^(sudo )?chown alice\\.finance report\\.txt$"], "comp": {"show": "sudo ch___ alice:finance report.txt", "ans": ["own"]}, "out": "$ ls -l report.txt\n-rw-r----- 1 alice finance 1880 Nov 17 10:02 report.txt", "tip": "chown changes who owns the file; chmod changes what they can do. Usually only root can give a file away, hence sudo.", "plat": "linux", "ex": "chown alice:finance report.txt"}, {"id": "lin-ps", "cmd": "ps aux", "core": true, "obj": "4.9", "what": "Snapshot of every process with user, PID, CPU/memory and full command line (\"ps -ef\" is the System V equivalent).", "recog": "Which Linux command shows every running process with its user, PID, CPU use and command line?", "scen": "A Linux server is slow and you suspect a cryptominer. Which ps command lists every process with CPU use and the full command?", "lab": "Find out what is consuming this server's CPU. List every process with its user, PID, CPU% and full command.", "accept": ["^(sudo )?ps (aux|-aux|-ef|-eF|axu|-e -f)$"], "comp": {"show": "ps ___   (every process, BSD style)", "ans": ["aux", "axu"]}, "out": "USER       PID %CPU %MEM    VSZ   RSS TTY  STAT START   TIME COMMAND\nroot       844  0.0  0.1  15420  6120 ?    Ss   08:01   0:00 /usr/sbin/sshd -D\nwww-data  2290 97.8  1.2 245880 48200 ?    Sl   09:12  41:07 /tmp/.x/kworkerd", "tip": "A process named like a kernel thread (kworkerd), running from a hidden /tmp folder as www-data at 98% CPU, is a likely cryptominer dropped through the web app.", "plat": "linux", "ex": "ps aux"}, {"id": "lin-top", "cmd": "top", "core": false, "obj": "4.9", "what": "Live, continuously refreshing view of processes sorted by CPU use, plus load average.", "recog": "Which Linux command shows a live, refreshing view of the processes using the most CPU?", "scen": "You want to watch CPU use change in real time on a Linux host, not just a one-time snapshot. Which command?", "lab": "Watch, live, which processes are consuming CPU on this server.", "accept": ["^top$", "^htop$"], "out": "top - 09:55:01 up 3 days,  2 users,  load average: 3.91, 3.70, 2.12\nTasks: 142 total,   2 running\n%Cpu(s): 97.4 us,  1.2 sy,  0.0 ni,  1.1 id\n\n  PID USER      %CPU %MEM COMMAND\n 2290 www-data  97.8  1.2 kworkerd", "tip": "Use top to spot a hog live; use ps aux for a snapshot you can save into the incident record.", "plat": "linux", "comp": null, "ex": "top"}, {"id": "lin-systemctl", "cmd": "systemctl", "core": true, "obj": "4.1", "what": "Controls systemd services: status, start, stop, enable (start at boot), disable (do not start at boot).", "recog": "Which Linux command checks, stops, or disables a systemd service?", "scen": "Hardening calls for the unused vsftpd FTP service to stop and not come back after a reboot. Which systemctl command does both at once?", "lab": "Hardening task: stop the vsftpd service now and prevent it from starting at boot, in one command.", "accept": ["^(sudo )?systemctl disable --now vsftpd(\\.service)?$", "^(sudo )?systemctl --now disable vsftpd(\\.service)?$", "^(sudo )?systemctl mask --now vsftpd(\\.service)?$"], "comp": {"show": "systemctl _______ --now vsftpd   (also prevent start at boot)", "ans": ["disable", "mask"]}, "out": "Removed \"/etc/systemd/system/multi-user.target.wants/vsftpd.service\".", "tip": "\"disable\" alone only affects the next boot; \"--now\" also stops it immediately. Removing unneeded services reduces the attack surface.", "plat": "linux", "ex": "sudo systemctl disable --now vsftpd"}, {"id": "lin-journalctl", "cmd": "journalctl -u", "core": true, "obj": "4.9", "what": "Reads the systemd journal. -u filters to one service unit, -f follows live, --since limits by time.", "recog": "Which Linux command reads systemd journal logs, and which option filters to one service?", "scen": "You want only the SSH daemon's log entries from the systemd journal. Which command?", "lab": "Review only the sshd service's entries in the systemd journal.", "accept": ["^(sudo )?journalctl (-u ?|--unit[= ])(sshd|ssh)(\\.service)?( -e| -f| --since \\S+)*$"], "comp": {"show": "journalctl -_ sshd   (one service unit)", "ans": ["u"]}, "out": "Nov 17 02:14:07 web01 sshd[3121]: Failed password for root from 203.0.113.50 port 51122 ssh2\nNov 17 02:14:09 web01 sshd[3121]: Failed password for root from 203.0.113.50 port 51122 ssh2\nNov 17 02:15:44 web01 sshd[3190]: Accepted password for root from 203.0.113.50 port 51188 ssh2", "tip": "Failures followed by \"Accepted password\" from the same IP means the brute force worked. Treat it as a confirmed compromise: contain the host and disable root password login.", "plat": "linux", "ex": "journalctl -u sshd"}, {"id": "lin-tcpdump", "cmd": "tcpdump", "core": true, "obj": "4.9", "what": "Command-line packet capture. -i picks the interface; filters such as \"port 53\" or \"host 10.0.0.5\" narrow it; -w writes a pcap.", "recog": "Which command-line tool captures network packets on a Linux interface?", "scen": "You want to watch DNS queries leaving a suspected-infected Linux host on eth0. Which tcpdump command?", "lab": "Capture DNS traffic (port 53) on interface eth0 to see what names this host is resolving.", "accept": ["^(sudo )?tcpdump( -nn?)? -i eth0( -nn?)? (udp )?port 53$", "^(sudo )?tcpdump -i eth0 -w \\S+\\.pcap (udp )?port 53$"], "comp": {"show": "tcpdump -_ eth0 port 53   (choose the interface)", "ans": ["i"]}, "out": "listening on eth0, link-type EN10MB (Ethernet), snapshot length 262144 bytes\n09:52:11.402 IP 10.20.40.15.41822 > 10.20.40.2.53: 4411+ A? x7f3k9.update-cdn.example.net. (44)\n09:52:13.415 IP 10.20.40.15.41830 > 10.20.40.2.53: 4412+ A? q2m8z1.update-cdn.example.net. (44)", "tip": "Random-looking subdomains queried every few seconds suggest DGA malware or DNS tunneling. Block the domain and isolate the host.", "plat": "linux", "ex": "tcpdump -i eth0 port 53"}, {"id": "lin-nmap", "cmd": "nmap -sV", "core": true, "obj": "4.3", "what": "Network scanner. -sV detects service versions, -sn does host discovery only, -p picks ports. Only scan systems you are authorized to test.", "recog": "Which nmap option identifies the software name and version running on each open port?", "scen": "In an authorized internal assessment, you need the service versions running on your own server 10.0.0.5, to match them against known vulnerabilities. Which command?", "lab": "Authorized assessment: identify the service versions on your organization's server 10.0.0.5.", "accept": ["^(sudo )?nmap -sV( -p\\S+)? 10\\.0\\.0\\.5$", "^(sudo )?nmap( -p\\S+)? -sV 10\\.0\\.0\\.5$", "^(sudo )?nmap -A 10\\.0\\.0\\.5$"], "comp": {"show": "nmap -s_ 10.0.0.5   (version detection)", "ans": ["V"]}, "out": "PORT     STATE SERVICE VERSION\n22/tcp   open  ssh     OpenSSH 8.9p1 Ubuntu\n80/tcp   open  http    Apache httpd 2.4.49\n3306/tcp open  mysql   MySQL 5.7.33", "tip": "Apache 2.4.49 has a well-known path-traversal flaw (CVE-2021-41773), and MySQL should not be reachable from the network. Patch first, then restrict 3306 with a firewall rule.", "plat": "linux", "ex": "nmap -sV 10.0.0.5"}, {"id": "lin-curl", "cmd": "curl -I", "core": false, "obj": "4.5", "what": "Transfers data from or to URLs. -I fetches only the HTTP response headers.", "recog": "Which curl option fetches only a web server's HTTP response headers?", "scen": "You want to check whether intranet.example.com sends an HSTS header and reveals its server version, without downloading the page. Which command?", "lab": "Check the HTTP response headers returned by https://intranet.example.com.", "accept": ["^curl (-I|--head|-sI|-Is) https?://intranet\\.example\\.com/?$"], "comp": {"show": "curl -_ https://intranet.example.com   (headers only)", "ans": ["I"]}, "out": "HTTP/2 200\nserver: nginx/1.18.0\ncontent-type: text/html\nx-frame-options: SAMEORIGIN", "tip": "No strict-transport-security header means HSTS is missing, and the server banner leaks its version. Both are common hardening findings.", "plat": "linux", "ex": "curl -I https://intranet.example.com"}, {"id": "lin-openssl", "cmd": "openssl s_client", "core": true, "obj": "1.4", "what": "TLS/PKI toolkit. \"s_client -connect host:443\" shows the certificate chain a server presents; \"x509 -in cert.pem -noout -text\" decodes a certificate file.", "recog": "Which openssl subcommand connects to a server and shows the TLS certificate chain it presents?", "scen": "Users get certificate warnings on mail.example.com. Which openssl command shows the certificate and chain that server presents on port 443?", "lab": "Inspect the certificate that mail.example.com presents on port 443.", "accept": ["^openssl s_client( -showcerts)? -connect mail\\.example\\.com:443( -servername mail\\.example\\.com)?( -showcerts)?$"], "comp": {"show": "openssl ________ -connect mail.example.com:443", "ans": ["s_client"]}, "out": "CONNECTED(00000003)\ndepth=0 CN = mail.example.com\nverify error:num=10:certificate has expired\nnotAfter=Oct 31 23:59:59 2026 GMT\n---\nCertificate chain\n 0 s:CN = mail.example.com\n   i:C = US, O = Example CA, CN = Example Issuing CA 1", "tip": "\"certificate has expired\" (notAfter Oct 31 2026) explains the warnings. Renew and redeploy the certificate, and set expiry monitoring.", "plat": "linux", "ex": "openssl s_client -connect mail.example.com:443"}, {"plat": "windows", "id": "win-certutil-hash", "cmd": "certutil -hashfile", "core": true, "obj": "1.4", "what": "Computes a file hash on Windows (built in). Name the algorithm, e.g. SHA256, and compare it to the vendor's published value.", "recog": "Which built-in Windows command computes the SHA-256 hash of a file?", "scen": "You downloaded patch.iso and the vendor publishes its SHA-256 hash. Which built-in Windows command produces the hash to compare?", "lab": "Verify the integrity of patch.iso by computing its SHA-256 hash.", "accept": ["^certutil -hashfile patch\\.iso sha256$", "^get-filehash (\\.\\\\)?patch\\.iso( -algorithm sha256)?$"], "comp": {"show": "certutil -________ patch.iso SHA256", "ans": ["hashfile"]}, "out": "SHA256 hash of patch.iso:\n4f0c2a1d9e8b7c6a5f4e3d2c1b0a99887766554433221100ffeeddccbbaa9988\nCertUtil: -hashfile command completed successfully.", "tip": "If the value differs from the vendor's published hash by even one character, the file was altered or corrupted: do not install it. PowerShell Get-FileHash does the same (SHA256 by default).", "ex": "certutil -hashfile patch.iso SHA256"}, {"plat": "windows", "id": "win-icacls", "cmd": "icacls", "core": true, "obj": "4.6", "what": "Displays or changes NTFS permissions (ACLs) on files and folders.", "recog": "Which Windows command displays the NTFS permissions on a file or folder?", "scen": "During an access review you need to see exactly who has which NTFS permissions on C:\\Finance. Which command?", "lab": "Review the NTFS permissions on the C:\\Finance folder.", "accept": ["^icacls \"?c:\\\\finance\\\\?\"?$"], "comp": {"show": "i_____ C:\\Finance", "ans": ["cacls"]}, "out": "C:\\Finance CORP\\Finance-Staff:(OI)(CI)(M)\n           Everyone:(OI)(CI)(F)\n           BUILTIN\\Administrators:(OI)(CI)(F)\n           NT AUTHORITY\\SYSTEM:(OI)(CI)(F)\nSuccessfully processed 1 files; Failed processing 0 files", "tip": "\"Everyone:(F)\" means anyone has Full control of the finance share. Remove it so only Finance-Staff keeps Modify (least privilege).", "ex": "icacls C:\\Finance"}, {"plat": "linux", "id": "lin-sha256sum", "cmd": "sha256sum", "core": true, "obj": "1.4", "what": "Computes a file's SHA-256 hash on Linux. \"sha256sum -c file.sha256\" checks it against a published list.", "recog": "Which Linux command computes the SHA-256 hash of a file?", "scen": "Before installing patch.iso on a Linux server, you need its SHA-256 hash to compare with the vendor's value. Which command?", "lab": "Compute the SHA-256 hash of patch.iso to verify it was not tampered with.", "accept": ["^(sudo )?sha256sum patch\\.iso$"], "comp": {"show": "sha___sum patch.iso", "ans": ["256"]}, "out": "4f0c2a1d9e8b7c6a5f4e3d2c1b0a99887766554433221100ffeeddccbbaa9988  patch.iso", "tip": "Hashing proves integrity, not authenticity. A matching hash taken from the same compromised site proves nothing, so also check the vendor's code signature.", "ex": "sha256sum patch.iso"}, {"plat": "linux", "id": "lin-usermod-lock", "cmd": "usermod -L", "core": true, "obj": "4.6", "what": "Locks a local account's password (-L) so it cannot log in with it; -U unlocks. Add \"-s /sbin/nologin\" or expire the account to block other login methods.", "recog": "Which Linux command and option lock a local user account?", "scen": "The local account jsmith is believed compromised. Which command locks it right away without deleting it (keeping it for the investigation)?", "lab": "Contain a compromised account: lock jsmith without deleting it.", "accept": ["^(sudo )?usermod -L jsmith$", "^(sudo )?passwd -l jsmith$"], "comp": {"show": "usermod -_ jsmith", "ans": ["L"]}, "out": "$ sudo passwd -S jsmith\njsmith L 11/02/2026 0 99999 7 -1 (Password locked.)", "tip": "Locking keeps the account and its files for forensics. Note that a password lock does not block SSH keys, so also remove authorized_keys or set the shell to nologin.", "ex": "usermod -L jsmith"}, {"plat": "linux", "id": "lin-ufw", "cmd": "ufw status", "core": false, "obj": "4.5", "what": "Uncomplicated Firewall front end. \"ufw status verbose\" shows whether it is active and lists its rules.", "recog": "On Ubuntu, which command shows whether the host firewall is active and lists its rules?", "scen": "You are hardening an Ubuntu server and want to confirm its host-based firewall is on and see the rules. Which command?", "lab": "Confirm the Ubuntu host firewall is enabled and list its rules.", "accept": ["^(sudo )?ufw status( verbose| numbered)?$"], "comp": {"show": "sudo ufw ______ verbose", "ans": ["status"]}, "out": "Status: active\nLogging: on (low)\nDefault: deny (incoming), allow (outgoing)\n\nTo                         Action      From\n--                         ------      ----\n22/tcp                     ALLOW IN    10.20.0.0/16\n443/tcp                    ALLOW IN    Anywhere", "tip": "Default deny inbound, SSH only from the internal range, and HTTPS open to all is a good baseline.", "ex": "ufw status"}];
+  /* CLI_DATA_END */
+  /* CLI_TRAINER_START */
+  /* ---------- Security+ Command-Line Mastery: grading + spaced repetition ----------
+     Pure logic (storage, clock and scheduler injected) so the automated tests run the
+     exact shipped code. Five card modes per command:
+       A recognition  (description -> type the command)
+       B reverse      (command -> recall what it does; self-rated)
+       C scenario     (situation -> type the command)
+       D completion   (fill in the missing option)
+       E terminal     (troubleshooting task in a simulated terminal; shows output)
+     Typed answers are graded against an allowlist of valid variants. Nothing is executed. */
+  function createCliTrainer(opts){
+    const KEY = 'cybersec_cli_mastery_v1';
+    const get = opts.getItem, set = opts.setItem, now = opts.now || (() => Date.now());
+    const sm2 = opts.sm2, commands = opts.commands || [];
+    const rand = opts.random || Math.random;
+    const MODES = ['A', 'B', 'C', 'D', 'E'];
+    const RATING = { dk: 'again', struggled: 'hard', know: 'good' };
+    let data = {};
+    try{ data = JSON.parse(get(KEY)) || {}; }catch(e){ data = {}; }
+    if(!data || typeof data !== 'object' || Array.isArray(data)) data = {};
+    if(!data.cards) data.cards = {}; if(!data.cmds) data.cmds = {}; if(!data.pbq) data.pbq = {};
+    function save(){ return set(KEY, JSON.stringify(data)); }
+    const byId = {}; commands.forEach(c => { byId[c.id] = c; });
+
+    /* ----- grading ----- */
+    function normalize(input, plat){
+      let s = String(input || '').trim();
+      s = s.replace(/^(PS [^>]*>|[A-Za-z]:\\[^>]*>|\$|#|>)\s*/, '');   // pasted prompts
+      s = s.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, '-');
+      s = s.replace(/\s+/g, ' ').replace(/\s*;\s*$/, '').trim();
+      return s;
+    }
+    function flagMatch(spec, s, plat){
+      let toks = s.split(' ');
+      if(spec.sudo && toks[0] === 'sudo') toks = toks.slice(1);
+      const cmdOk = plat === 'windows' ? (toks[0] || '').toLowerCase() === spec.cmd.toLowerCase() : toks[0] === spec.cmd;
+      if(!cmdOk) return false;
+      const letters = [];
+      for(const t of toks.slice(1)){
+        if(!/^-[A-Za-z]+$/.test(t)) return false;
+        letters.push(...(plat === 'windows' ? t.slice(1).toLowerCase() : t.slice(1)).split(''));
+      }
+      const want = spec.flags.split('').sort().join('');
+      const got = letters.slice().sort().join('');
+      return got === want && new Set(letters).size === letters.length;
+    }
+    function gradeCommand(cmd, input){
+      const s = normalize(input, cmd.plat);
+      if(!s) return false;
+      return (cmd.accept || []).some(a => {
+        if(typeof a === 'string'){ try{ return new RegExp(a, cmd.plat === 'windows' ? 'i' : '').test(s); }catch(e){ return false; } }
+        if(a && a.flags) return flagMatch(a, s, cmd.plat);
+        return false;
+      });
+    }
+    /* Mode A (recognition) asks for the command itself, so the bare command is enough:
+       "grep", "netstat -nao", or the command with sensible arguments added. */
+    function gradeRecognition(cmd, input){
+      if(gradeCommand(cmd, input)) return true;
+      let s = normalize(input, cmd.plat);
+      if(s.indexOf('sudo ') === 0) s = s.slice(5);
+      const win = cmd.plat === 'windows';
+      const a = win ? s.toLowerCase() : s, b = win ? cmd.cmd.toLowerCase() : cmd.cmd;
+      if(a === b || a.indexOf(b + ' ') === 0) return true;
+      const parts = cmd.cmd.split(' ');
+      if(parts.length === 2 && /^-[A-Za-z]{2,}$/.test(parts[1])){
+        const toks = s.split(' ');
+        const base = toks[0], rest = toks.slice(1);
+        const flagToks = rest.filter(x => /^-[A-Za-z]+$/.test(x));
+        if((win ? base.toLowerCase() : base) === (win ? parts[0].toLowerCase() : parts[0]) && flagToks.length){
+          return flagMatch({ cmd: parts[0], flags: parts[1].slice(1) }, [base].concat(flagToks).join(' '), cmd.plat);
+        }
+      }
+      return false;
+    }
+    function gradeCompletion(cmd, input){
+      if(!cmd.comp) return false;
+      let s = normalize(input, cmd.plat).replace(/^[-\/]+/, '');
+      if(!s) return false;
+      return cmd.comp.ans.some(a => {
+        if(a && a.flags){ const got = s.split('').sort().join(''); return /^[A-Za-z]+$/.test(s) && got === a.flags.split('').sort().join('') && new Set(s).size === s.length; }
+        return cmd.plat === 'windows' ? s.toLowerCase() === String(a).toLowerCase() : s === String(a);
+      });
+    }
+    /* Which command (if any) a PBQ's expected answer belongs to, so a missed CLI PBQ can raise that command's priority. */
+    function commandForExample(example){
+      if(!example) return null;
+      for(const c of commands){ if(gradeCommand(c, example)) return c; }
+      // fallback: same base command (one-word commands, or same first two words)
+      const t = String(example).trim().toLowerCase().split(/\s+/);
+      return commands.find(c => { const w = c.cmd.toLowerCase().split(' '); return w[0] === t[0] && (w.length === 1 || w[1] === t[1]); }) || null;
+    }
+
+    /* ----- cards ----- */
+    function modesFor(c){
+      return MODES.filter(m => (m === 'A' && c.recog) || m === 'B' || (m === 'C' && c.scen) || (m === 'D' && c.comp) || (m === 'E' && (c.lab || c.scen)));
+    }
+    function cardsFor(filter){
+      filter = filter || {};
+      const out = [];
+      commands.forEach(c => {
+        if(filter.plat && filter.plat !== 'all' && c.plat !== filter.plat) return;
+        if(filter.coreOnly && !c.core) return;
+        modesFor(c).forEach(m => { if(!filter.mode || filter.mode === 'mixed' || filter.mode === m) out.push({ key: c.id + '|' + m, cmd: c, mode: m }); });
+      });
+      return out;
+    }
+    function isDue(key){ const st = data.cards[key]; return !!st && st.due <= now(); }
+    /* Builds a study session: commands missed in PBQs first (if asked), then due cards
+       (most overdue first), then new cards (core before supplemental). Never two cards
+       for the same command back to back when it can be avoided. */
+    function buildSession(filter, limit){
+      limit = limit || 20;
+      const all = cardsFor(filter);
+      const pbqFirst = filter && filter.pbqPriority;
+      const missedSet = new Set(Object.keys(data.pbq).filter(id => { const p = data.pbq[id]; const cs = data.cmds[id]; return p.missed > 0 && (!cs || !cs.last || p.lastMiss > cs.last); }));
+      const shuffled = arr => arr.map(x => ({ x, k: rand() })).sort((a, b) => a.k - b.k).map(o => o.x);
+      const pbq = pbqFirst ? shuffled(all.filter(c => missedSet.has(c.cmd.id))) : [];
+      const due = all.filter(c => isDue(c.key)).sort((a, b) => data.cards[a.key].due - data.cards[b.key].due);
+      const fresh = shuffled(all.filter(c => !data.cards[c.key])).sort((a, b) => (b.cmd.core ? 1 : 0) - (a.cmd.core ? 1 : 0));
+      const seen = new Set(), queue = [];
+      [pbq, due, fresh].forEach(list => list.forEach(c => { if(queue.length < limit && !seen.has(c.key)){ seen.add(c.key); queue.push(c); } }));
+      for(let i = 1; i < queue.length; i++){
+        if(queue[i].cmd.id === queue[i - 1].cmd.id){
+          const j = queue.findIndex((c, k) => k > i && c.cmd.id !== queue[i - 1].cmd.id);
+          if(j > 0){ const t = queue[i]; queue[i] = queue[j]; queue[j] = t; }
+        }
+      }
+      return queue;
+    }
+    /* Practice-anyway set when nothing is due: weakest commands first. */
+    function buildPractice(filter, limit){
+      const all = cardsFor(filter);
+      const acc = c => { const s = data.cmds[c.cmd.id]; return s && (s.right + s.wrong) ? s.right / (s.right + s.wrong) : 0.5; };
+      return all.map(c => ({ c, k: acc(c) + rand() * 0.25 })).sort((a, b) => a.k - b.k).slice(0, limit || 15).map(o => o.c);
+    }
+    /* rating: 'dk' | 'struggled' | 'know'. correct: whether the typed answer matched (null for self-rated B cards). */
+    function review(card, rating, correct){
+      const st = sm2(data.cards[card.key], RATING[rating] || 'again');
+      const prev = data.cards[card.key] || {};
+      const success = rating === 'know' || (rating === 'struggled' && correct !== false);
+      const t = now();
+      data.cards[card.key] = { interval: st.interval, ease: st.ease, reps: st.reps, due: st.due, last: t,
+        streak: success ? (prev.streak || 0) + 1 : 0, right: (prev.right || 0) + (success ? 1 : 0), wrong: (prev.wrong || 0) + (success ? 0 : 1), lastRating: rating };
+      const cs = data.cmds[card.cmd.id] || { right: 0, wrong: 0, streak: 0, best: 0, last: 0 };
+      if(success){ cs.right++; cs.streak++; cs.best = Math.max(cs.best, cs.streak); } else { cs.wrong++; cs.streak = 0; }
+      cs.last = t; data.cmds[card.cmd.id] = cs;
+      save();
+      return data.cards[card.key];
+    }
+    function recordPbqResult(example, correct){
+      const c = commandForExample(example);
+      if(!c) return null;
+      const p = data.pbq[c.id] || { missed: 0, passed: 0, lastMiss: 0 };
+      if(correct) p.passed++; else { p.missed++; p.lastMiss = now(); }
+      data.pbq[c.id] = p; save();
+      return c.id;
+    }
+    function commandStatus(c){
+      const keys = modesFor(c).map(m => c.id + '|' + m);
+      const states = keys.map(k => data.cards[k]).filter(Boolean);
+      const cs = data.cmds[c.id] || { right: 0, wrong: 0, streak: 0, best: 0, last: 0 };
+      const p = data.pbq[c.id] || { missed: 0 };
+      const masteredCards = keys.filter(k => { const s = data.cards[k]; return s && s.streak >= 3 && s.interval >= 3; }).length;
+      const attempts = cs.right + cs.wrong;
+      const due = states.length ? Math.min(...states.map(s => s.due)) : null;
+      let status = 'new';
+      const pbqPending = p.missed > 0 && (!cs.last || p.lastMiss > cs.last);
+      if(pbqPending) status = 'struggling';
+      else if(states.length){
+        if(masteredCards >= Math.ceil(keys.length * 0.8)) status = 'mastered';
+        else if(cs.wrong >= 2 && cs.streak === 0) status = 'struggling';
+        else status = 'learning';
+      }
+      return { id: c.id, cmd: c.cmd, plat: c.plat, core: c.core, cards: keys.length, studied: states.length, masteredCards,
+        accuracy: attempts ? cs.right / attempts : null, streak: cs.streak, best: cs.best, last: cs.last || null, nextDue: due,
+        pbqMissed: p.missed || 0, status };
+    }
+    function summary(filter){
+      const list = commands.filter(c => (!filter || !filter.plat || filter.plat === 'all' || c.plat === filter.plat) && (!filter || !filter.coreOnly || c.core)).map(commandStatus);
+      const cards = cardsFor(filter || {});
+      const r = list.reduce((s, x) => { const cs = data.cmds[x.id]; if(cs){ s.right += cs.right; s.wrong += cs.wrong; } return s; }, { right: 0, wrong: 0 });
+      return { commands: list, total: list.length,
+        mastered: list.filter(x => x.status === 'mastered').length, struggling: list.filter(x => x.status === 'struggling').length,
+        newCount: list.filter(x => x.status === 'new').length, dueNow: cards.filter(c => isDue(c.key)).length,
+        newCards: cards.filter(c => !data.cards[c.key]).length, accuracy: (r.right + r.wrong) ? r.right / (r.right + r.wrong) : null };
+    }
+    function reset(){ data = { cards: {}, cmds: {}, pbq: {} }; save(); }
+    return { KEY, MODES, normalize, gradeCommand, gradeRecognition, gradeCompletion, commandForExample, modesFor, cardsFor, buildSession, buildPractice,
+      review, recordPbqResult, commandStatus, summary, reset, raw: () => data, byId };
+  }
+  /* CLI_TRAINER_END */
 
   const TRACK_KEY = 'cybersec_track_v1';
   /* Tracks are the app's "front door" — a lightweight scope layer on top of
@@ -6652,7 +6903,62 @@
     { domain:'management', question:'A company gives developers training in secure coding, finance staff training on invoice fraud, and executives training on whaling. What is this approach called?', options:['Role-based security training', 'Vendor due diligence', 'A tabletop exercise', 'Annual compliance attestation'], correct:[0], why:'Role-based training gives each group the content that matches the threats and responsibilities of its job, which is more effective than identical training for everyone.' },
     { domain:'management', question:'Ransomware has taken down a company\'s order system. Which plan describes how staff keep taking orders manually in the meantime, and which describes how IT restores the system?', options:['Disaster recovery plan; business continuity plan', 'Business continuity plan; disaster recovery plan', 'Incident response plan; acceptable use policy', 'Change management plan; data retention policy'], correct:[1], why:'Business continuity keeps critical functions running during a disruption. Disaster recovery is the IT-focused part that restores the systems and data.' },
     { domain:'management', question:'In risk analysis, how do "probability" and "likelihood" usually differ?', options:['They are measured in dollars and hours', 'Likelihood is always more accurate', 'Probability is expressed as a number or percentage; likelihood is described in words such as low, medium or high', 'Probability is used for threats; likelihood for vulnerabilities'], correct:[2], why:'Quantitative analysis uses numeric probability. Qualitative analysis uses descriptive likelihood ratings.' },
-    { domain:'management', question:'A card processor must have a risk assessment performed every year. Separately, a company commissions an assessment before acquiring another firm. How are these two classified?', options:['The annual assessment is ad hoc; the other is recurring', 'Both are continuous', 'The annual assessment is recurring; the pre-acquisition assessment is one-time', 'Both are one-time'], correct:[2], why:'A recurring assessment happens on a schedule. A one-time assessment is done for a specific purpose, such as a merger or a new system.' }
+    { domain:'management', question:'A card processor must have a risk assessment performed every year. Separately, a company commissions an assessment before acquiring another firm. How are these two classified?', options:['The annual assessment is ad hoc; the other is recurring', 'Both are continuous', 'The annual assessment is recurring; the pre-acquisition assessment is one-time', 'Both are one-time'], correct:[2], why:'A recurring assessment happens on a schedule. A one-time assessment is done for a specific purpose, such as a merger or a new system.' },
+    /* ---- Original application-style questions, batch 1 (2026-11-17): scenario-first, written for this app ---- */
+    { domain:'general', question:"A company posts signs at its data center entrance warning that all visitors are recorded and that unauthorized entry will be prosecuted. The signs do not physically stop anyone. Which control type BEST describes the signs?", options:["Preventive", "Deterrent", "Detective", "Compensating"], correct:[1], why:"The signs work by discouraging an attempt, which makes them a deterrent. Nothing physically stops entry, so they are not preventive. They don't record or detect an event, so they are not detective. They aren't standing in for a control that couldn't be implemented, so they are not compensating.", src:'original-2026-11', obj:'1.1' },
+    { domain:'general', question:"A legacy payroll server cannot be patched until it is replaced next quarter. Until then, the security team moves it to an isolated VLAN and allows only the payroll application server to reach it. Which control type is the isolation?", options:["Corrective", "Directive", "Compensating", "Deterrent"], correct:[2], why:"Patching is the expected control. Because it can't be applied yet, the isolation is an alternative control that reduces the same risk: a compensating control. Corrective controls fix things after an incident, directive controls are instructions such as policy, and deterrents discourage attempts.", src:'original-2026-11', obj:'1.1' },
+    { domain:'general', question:"During an approved Saturday maintenance window, an engineer applies a firewall rule change and the customer portal immediately stops responding. What should the engineer do FIRST?", options:["Open a new change request", "Execute the backout plan", "Ask the CAB for an emergency fix", "Record it in lessons learned"], correct:[1], why:"The backout plan exists for exactly this case: restore the known-good configuration so service returns. Troubleshooting a fix, opening new requests, or writing up lessons learned come after the outage is reversed.", src:'original-2026-11', obj:'1.3' },
+    { domain:'general', question:"A developer requests an urgent patch to a server. The review finds that the billing database on another server depends on a service running on that server. Which part of the change management process should surface this before approval?", options:["Impact analysis", "Backout plan", "Version control", "Maintenance window"], correct:[0], why:"Impact analysis looks at what else a change could affect, including dependencies such as the billing system, so approvers can weigh the risk. A backout plan reverses a change, version control tracks revisions, and a maintenance window sets when the change happens.", src:'original-2026-11', obj:'1.3' },
+    { domain:'general', question:"A company is launching a public e-commerce site. Customers' browsers must trust the site's certificate without anyone installing anything. Which certificate should the company obtain?", options:["Self-signed certificate", "Internal enterprise CA certificate", "Public CA-signed certificate", "Wildcard from an internal CA"], correct:[2], why:"Browsers already trust well-known public CAs, so a certificate they sign is trusted automatically. Self-signed and internal-CA certificates (wildcard or not) are trusted only on devices that have been set up to trust them.", src:'original-2026-11', obj:'1.4' },
+    { domain:'general', question:"An organization encrypts backups stored in the cloud. It wants the encryption keys to stay inside dedicated tamper-resistant hardware in its own data center, where they can be used but never exported. Which technology fits BEST?", options:["TPM", "HSM", "Secure enclave", "Key escrow"], correct:[1], why:"A hardware security module (HSM) is a dedicated, tamper-resistant appliance that generates, stores and uses keys for the organization without exporting them. A TPM is a chip tied to a single device, a secure enclave protects data inside one processor, and key escrow means a third party holds a copy of the keys.", src:'original-2026-11', obj:'1.4' },
+    { domain:'general', question:"A security team is redesigning how a web application stores user passwords so that a stolen database is as hard as possible to crack offline. Which TWO techniques should it use? (Select TWO.)", options:["Salting", "Key stretching", "AES encryption", "Base64 encoding", "Tokenization"], correct:[0, 1], why:"A unique salt per password defeats precomputed rainbow tables and stops identical passwords from producing identical hashes. Key stretching (bcrypt, PBKDF2, Argon2) makes each guess slow. Encrypted passwords can be decrypted if the key is stolen, Base64 is only an encoding, and tokenization isn't used for password checks.", src:'original-2026-11', obj:'1.4' },
+    { domain:'general', question:"In a zero trust design, a user on the corporate LAN requests the HR application. The request is evaluated against identity, device health and policy before access is granted. Which component makes the allow/deny decision?", options:["Policy enforcement point", "Policy engine", "Implicit trust zone", "Data plane"], correct:[1], why:"The policy engine, in the control plane, evaluates the request and decides. The policy enforcement point, in the data plane, carries out that decision by allowing or blocking the connection. Zero trust removes implicit trust zones.", src:'original-2026-11', obj:'1.2' },
+    { domain:'general', question:"Employees at a secure facility hold the badge-controlled door open for coworkers behind them. Management wants to make sure only one person enters per badge swipe. Which control BEST addresses this?", options:["Bollards", "Access control vestibule", "Video surveillance", "Reception sign-in log"], correct:[1], why:"An access control vestibule (mantrap) uses two interlocking doors so only one person passes per authentication, which stops tailgating. Bollards stop vehicles, cameras only record, and a sign-in log doesn't physically stop anyone.", src:'original-2026-11', obj:'1.2' },
+    { domain:'threats', question:"A hospital's MRI workstations run a vendor-locked operating system that cannot be patched or have agents installed. Which mitigation BEST reduces their risk?", options:["Network segmentation", "Full-disk encryption", "Annual penetration test", "Antivirus signature updates"], correct:[0], why:"When a device can't be patched or run security software, the best you can do is limit what can reach it: put it in its own segment with tightly restricted access. Encryption doesn't stop exploitation, a test only finds problems, and antivirus can't be installed.", src:'original-2026-11', obj:'2.5' },
+    { domain:'threats', question:"A ransomware infection spread from one workstation to dozens of others over SMB within minutes. Which change would MOST directly limit this kind of spread in the future?", options:["Require longer passwords", "Encrypt the file shares", "Block workstation-to-workstation SMB", "Enable DNS filtering"], correct:[2], why:"Workstations rarely need to talk SMB to each other. Blocking it with host firewalls or segmentation removes the path the worm-like spread used. Longer passwords, share encryption and DNS filtering don't stop lateral movement over SMB.", src:'original-2026-11', obj:'2.5' },
+    { domain:'threats', question:"Public kiosk PCs in a branch lobby should run only the browser and the check-in application, and nothing a visitor downloads. Which control fits BEST?", options:["Application allow list", "Application deny list", "Sandboxing", "Host-based IPS"], correct:[0], why:"An allow list runs only approved software, so anything a visitor downloads is blocked by default. A deny list can only block known-bad programs, sandboxing contains apps instead of preventing them, and a HIPS watches behavior.", src:'original-2026-11', obj:'2.5' },
+    { domain:'threats', question:"A SIEM shows a user signing in from Chicago at 09:02 and from Singapore at 09:20 the same day, with no VPN in use. Which indicator is this?", options:["Account lockout", "Impossible travel", "Resource consumption", "Blocked content"], correct:[1], why:"Nobody can travel from Chicago to Singapore in 18 minutes, so this is impossible travel, a strong sign that the credentials are being used by someone else. The other options are different indicators that this log doesn't show.", src:'original-2026-11', obj:'2.4' },
+    { domain:'threats', question:"Authentication logs show one external IP trying the password \"Spring2026!\" once or twice against hundreds of different accounts over an hour. Which attack is this?", options:["Brute force", "Password spraying", "Credential stuffing", "Rainbow table"], correct:[1], why:"Password spraying tries one or two common passwords across many accounts to stay under lockout thresholds. Brute force tries many passwords against one account. Credential stuffing replays known username/password pairs from a breach. Rainbow tables are an offline hash-cracking technique.", src:'original-2026-11', obj:'2.4' },
+    { domain:'threats', question:"A web server log contains the request: GET /download?file=../../../../etc/passwd. Which attack is being attempted?", options:["SQL injection", "Cross-site scripting", "Directory traversal", "Buffer overflow"], correct:[2], why:"The ../ sequences try to climb out of the web folder to read a system file: directory (path) traversal. SQL injection targets database queries, XSS injects script into pages, and a buffer overflow sends oversized input.", src:'original-2026-11', obj:'2.4' },
+    { domain:'threats', question:"Employees receive email links to examp1e-payroll.com, which looks almost identical to the company's real domain, example-payroll.com, and hosts a fake login page. Which technique did the attacker use to get the look-alike domain?", options:["Typosquatting", "Watering hole", "Pretexting", "Domain hijacking"], correct:[0], why:"Registering a near-identical misspelled domain (1 for l) is typosquatting. A watering hole compromises a site victims already visit, pretexting is an invented story used in social engineering, and domain hijacking takes over the real domain's registration.", src:'original-2026-11', obj:'2.2' },
+    { domain:'threats', question:"Attackers want to compromise a small group of law firms. They plant malware on the website of a legal-industry association that lawyers at those firms visit often. Which attack is this?", options:["Watering hole", "Spear phishing", "Typosquatting", "Supply chain"], correct:[0], why:"Compromising a site the targets already trust and visit is a watering hole attack. Spear phishing contacts targets directly, typosquatting relies on a look-alike domain, and a supply chain attack compromises a vendor's product.", src:'original-2026-11', obj:'2.2' },
+    { domain:'threats', question:"A banking app checks an account's balance and then, a fraction of a second later, completes the withdrawal. By sending two withdrawal requests at the same moment, an attacker withdraws the same funds twice. Which vulnerability is this?", options:["Memory injection", "Race condition", "SQL injection", "Buffer overflow"], correct:[1], why:"The gap between checking the balance and using it is a time-of-check to time-of-use (TOCTOU) race condition. Parallel requests both pass the check before either one updates the balance.", src:'original-2026-11', obj:'2.3' },
+    { domain:'threats', question:"Over several months, a defense contractor is targeted with custom malware, long-term stealthy access and theft of engineering documents. No ransom or public message ever appears. Which threat actor is MOST likely responsible?", options:["Organized crime", "Hacktivist", "Nation-state", "Unskilled attacker"], correct:[2], why:"A long, well-resourced, stealthy campaign aimed at defense intellectual property, with no money demanded, points to a nation-state (an APT). Organized crime wants profit, hacktivists want publicity for a cause, and unskilled attackers use off-the-shelf tools.", src:'original-2026-11', obj:'2.1' },
+    { domain:'threats', question:"An EDR timeline from a file server shows several events in the last ten minutes. Which TWO MOST strongly indicate ransomware preparing to encrypt data? (Select TWO.)", options:["vssadmin delete shadows /all /quiet ran", "Hundreds of files renamed to a new extension", "Scheduled disk defragmentation ran", "A Windows cumulative update installed", "A user mapped a network drive"], correct:[0, 1], why:"Ransomware routinely deletes Volume Shadow Copies so victims can't restore, then encrypts and renames files in bulk. Defragmentation, updates and mapped drives are normal activity.", src:'original-2026-11', obj:'2.4' },
+    { domain:'architecture', question:"A retailer wants analysts to run reports on purchase history without ever seeing real card numbers, but the payment system must still be able to process refunds to the original card. Which method fits BEST?", options:["Hashing", "Tokenization", "Data masking", "Data minimization"], correct:[1], why:"Tokenization replaces each card number with a token. The secured token vault can map it back for refunds, while analysts only ever see tokens. Hashing can't be reversed, masking only hides digits on screen, and minimization means not collecting the data at all.", src:'original-2026-11', obj:'3.3' },
+    { domain:'architecture', question:"A help desk screen must let agents confirm a caller's identity using only the last four digits of their Social Security number. The full number stays in the database. Which technique does this?", options:["Tokenization", "Data masking", "Encryption at rest", "Hashing"], correct:[1], why:"Masking shows only part of the value (***-**-1234) while the full value remains stored. Tokenization swaps out the stored value, encryption at rest protects the storage itself, and hashing would make the digits unreadable.", src:'original-2026-11', obj:'3.3' },
+    { domain:'architecture', question:"A company's EU subsidiary is told that customer personal data must stay in data centers located in the EU because of local law. Which concept does this requirement reflect?", options:["Data classification", "Data sovereignty", "Data retention", "Data masking"], correct:[1], why:"Data sovereignty means data is subject to the laws of the country where it is stored, which drives requirements to keep it in certain regions. Classification labels data by sensitivity, retention sets how long it is kept, and masking hides values.", src:'original-2026-11', obj:'3.3' },
+    { domain:'architecture', question:"A powered-off laptop holding sensitive client files is stolen from a car. Which data state was at risk, and which control would have protected it?", options:["At rest; full-disk encryption", "In transit; TLS", "In use; secure enclave", "At rest; data masking"], correct:[0], why:"Files stored on a powered-off drive are data at rest, and full-disk encryption makes them unreadable without the key. TLS protects data in transit, enclaves protect data in use, and masking only changes what is displayed.", src:'original-2026-11', obj:'3.3' },
+    { domain:'architecture', question:"An organization wants to inspect HTTP requests to its public web servers and automatically block SQL injection and cross-site scripting attempts. Where should it place what?", options:["WAF in front of the web servers", "IDS on a SPAN port", "Jump server in the DMZ", "Load balancer behind the firewall"], correct:[0], why:"A web application firewall sits inline in front of the web servers and blocks application-layer attacks such as SQLi and XSS. An IDS on a SPAN port only alerts, a jump server is for admin access, and a load balancer spreads traffic without inspecting it for attacks.", src:'original-2026-11', obj:'3.2' },
+    { domain:'architecture', question:"An inline IPS protects a hospital network that carries patient-monitoring telemetry, where losing connectivity could endanger patients. If the IPS hardware fails, how should it be configured to behave?", options:["Fail open", "Fail closed", "Block all traffic until restarted", "Reboot into default-deny mode"], correct:[0], why:"Here availability is the safety priority, so the IPS should fail open and keep passing traffic uninspected. Failing closed (or any default-deny behavior) would cut off patient monitoring.", src:'original-2026-11', obj:'3.2' },
+    { domain:'architecture', question:"Administrators need to manage servers in a restricted network zone. Security does not want RDP or SSH on those servers reachable from the general user network. Which solution fits BEST?", options:["Jump server", "Reverse proxy", "Forward proxy", "Load balancer"], correct:[0], why:"A hardened jump server is the single, monitored entry point that admins connect to before reaching the restricted servers, so management ports stay closed to users. Proxies handle web traffic and load balancers distribute load.", src:'original-2026-11', obj:'3.2' },
+    { domain:'architecture', question:"An order database has a recovery point objective (RPO) of 15 minutes. Today it is backed up nightly. Which change BEST meets the RPO?", options:["Weekly full backups to tape", "Nightly snapshots to cloud storage", "RAID 1 mirroring on the server", "Replication to a second site"], correct:[3], why:"Replication copies changes within seconds to minutes, which keeps potential data loss under 15 minutes even if the site is lost. Nightly or weekly backups can lose up to a day or a week of data, and RAID 1 mirrors corruption and doesn't survive the loss of the site.", src:'original-2026-11', obj:'3.4' },
+    { domain:'architecture', question:"A small company can tolerate several days of downtime after a disaster and wants the lowest-cost alternate site: just space, power and connectivity, with equipment brought in later. Which option fits?", options:["Hot site", "Warm site", "Cold site", "Active-active cluster"], correct:[2], why:"A cold site provides only space, power and connectivity. It is the cheapest option but the slowest to bring online. Warm sites have some equipment ready, hot sites can take over almost immediately, and an active-active cluster runs both locations at once.", src:'original-2026-11', obj:'3.4' },
+    { domain:'architecture', question:"Cloud servers are built by hand from a checklist, and over time their configurations drift apart and miss security settings. Which approach BEST keeps every deployment consistent and reviewable?", options:["Serverless functions", "Infrastructure as code", "Microservices", "Virtual desktop infrastructure"], correct:[1], why:"Infrastructure as code defines servers in version-controlled templates, so every deployment matches the reviewed baseline and changes go through code review. The other options are architecture choices that don't address configuration drift.", src:'original-2026-11', obj:'3.1' },
+    { domain:'secops', question:"Customers are receiving emails that claim to come from the company's domain. Receiving mail servers currently have no published instructions from the company on what to do with messages that fail authentication checks. Which DNS record should the company publish?", options:["DMARC", "SPF", "DKIM", "MX"], correct:[0], why:"DMARC tells receivers what to do (none, quarantine or reject) with mail that fails SPF/DKIM alignment, and sends reports back. SPF lists the allowed sending servers, DKIM signs messages, and MX routes inbound mail.", src:'original-2026-11', obj:'4.5' },
+    { domain:'secops', question:"Security wants to stop all company devices, including non-browser applications, from reaching newly registered and known-malicious domains. Which control fits BEST?", options:["DNS filtering", "Web proxy URL categories", "Host-based firewall", "Data loss prevention"], correct:[0], why:"Almost every application resolves names through DNS, so DNS filtering blocks malicious domains for every app on every device. A web proxy mostly covers web traffic, a host firewall works on IPs and ports, and DLP watches for data leaving.", src:'original-2026-11', obj:'4.5' },
+    { domain:'secops', question:"A visitor plugs a personal laptop into a conference room wall jack, receives an IP address and reaches internal file servers. Which control would have prevented this?", options:["Network access control (802.1X)", "Data loss prevention", "File integrity monitoring", "Endpoint detection and response"], correct:[0], why:"NAC with 802.1X authenticates and checks a device before the switch port lets it onto the network, so the unknown laptop would have been refused or quarantined. The other tools don't stop a device from joining the network.", src:'original-2026-11', obj:'4.5' },
+    { domain:'secops', question:"A vulnerability scan reports two findings. A CVSS 9.8 flaw is on an isolated internal test server with no sensitive data. A CVSS 7.5 flaw is on the internet-facing payment portal, and threat intelligence says it is being actively exploited. Which should be remediated FIRST?", options:["The internal test server", "The internet-facing payment portal", "Whichever has the higher base score", "Whichever owner responds first"], correct:[1], why:"Prioritization weighs exposure, active exploitation and asset value, not only the CVSS base score. An exploited flaw on an internet-facing payment system is the more urgent risk than a higher-scored flaw on an isolated test box.", src:'original-2026-11', obj:'4.3' },
+    { domain:'secops', question:"An administrator has applied a patch for a critical finding on a database server. What should the analyst do NEXT to confirm the vulnerability is gone?", options:["Close the ticket", "Rescan the server", "Request a risk exception", "Mark the risk as accepted"], correct:[1], why:"Validation means rescanning (or otherwise verifying) that the fix actually worked before closing the finding. Closing without checking, requesting an exception or accepting the risk are not validation.", src:'original-2026-11', obj:'4.3' },
+    { domain:'secops', question:"A scanner flags an outdated OpenSSH version on a server. Manual checking shows the patched version is installed, and the scanner misread a custom banner. How should the finding be classified?", options:["True positive", "False negative", "False positive", "Zero-day"], correct:[2], why:"The scanner reported a vulnerability that doesn't exist, which is a false positive. A false negative is a real vulnerability the scanner missed.", src:'original-2026-11', obj:'4.3' },
+    { domain:'secops', question:"An analyst needs to know which internal hosts talked to a known command-and-control IP last week, and how much data each one sent. Full packet contents are not needed and were not stored. Which data source fits BEST?", options:["NetFlow records", "Full packet capture", "Antivirus logs", "Vulnerability scan report"], correct:[0], why:"NetFlow records who talked to whom, when, on which ports and how many bytes, without the payload, and it is cheap to keep for weeks. Full packet capture wasn't retained, and antivirus logs and scan reports don't record traffic.", src:'original-2026-11', obj:'4.9' },
+    { domain:'secops', question:"Firewall logs show a workstation connecting to a suspicious IP on port 443. The analyst now needs to know which process on the workstation made the connection. Which data source answers that?", options:["Endpoint (EDR) logs", "Firewall logs", "NetFlow records", "DNS server logs"], correct:[0], why:"Only the endpoint knows which process opened a connection. EDR or OS logs record the process, user and command line. Firewall, NetFlow and DNS data identify the host, not the process.", src:'original-2026-11', obj:'4.9' },
+    { domain:'secops', question:"The incident response team has isolated a compromised web server from the network. According to the incident response process, which phase comes NEXT?", options:["Recovery", "Eradication", "Lessons learned", "Preparation"], correct:[1], why:"After containment comes eradication: removing the malware, persistence and the vulnerability that was exploited. Recovery (returning to service) follows, then lessons learned.", src:'original-2026-11', obj:'4.8' },
+    { domain:'secops', question:"A forensic analyst is collecting evidence from a compromised server that is still running. Following the order of volatility, which should be collected FIRST?", options:["Disk image", "Contents of memory (RAM)", "Archived backups", "Logs on the remote SIEM"], correct:[1], why:"RAM is the most volatile evidence and is lost on shutdown, so it is captured first. Disk images, backups and logs already collected elsewhere last much longer.", src:'original-2026-11', obj:'4.8' },
+    { domain:'secops', question:"New employees should automatically get the access their job requires, and that access should change automatically when they transfer to another department. Which access control model fits BEST?", options:["Discretionary access control", "Mandatory access control", "Role-based access control", "Rule-based access control"], correct:[2], why:"RBAC ties permissions to job roles, so a new hire or transfer simply gets the role for their position. With DAC, data owners grant access individually. MAC uses labels and clearances. Rule-based control applies conditions such as time or source.", src:'original-2026-11', obj:'4.6' },
+    { domain:'secops', question:"Administrators should hold domain admin rights only for the 30 minutes needed to approve and apply a change, after which the rights are removed automatically. Which capability provides this?", options:["Password vaulting", "Just-in-time permissions", "A shared admin account", "Least-privilege service accounts"], correct:[1], why:"Just-in-time (JIT) privileged access grants elevated rights for a limited, approved window, then removes them automatically. A vault stores credentials, shared accounts destroy accountability, and service accounts are for applications.", src:'original-2026-11', obj:'4.6' },
+    { domain:'secops', question:"A company wants phishing-resistant multifactor authentication for its administrators. Which TWO options meet that goal? (Select TWO.)", options:["FIDO2 hardware security key", "Smart card with a PKI certificate", "SMS one-time code", "Emailed sign-in link", "Security questions"], correct:[0, 1], why:"FIDO2 keys and certificate-based smart cards cryptographically bind the login to the real site or system, so a fake page can't relay them. SMS codes and email links can be phished or intercepted, and security questions aren't a real second factor.", src:'original-2026-11', obj:'4.6' },
+    { domain:'secops', question:"A company is replacing a shared WPA2 passphrase in its offices. It wants each employee to sign in to Wi-Fi with their own credentials so access can be revoked individually. Which configuration fits BEST?", options:["WPA3-Personal (SAE)", "WPA3-Enterprise with 802.1X", "WPA2-PSK with a longer passphrase", "MAC address filtering"], correct:[1], why:"Enterprise mode authenticates each user through 802.1X/RADIUS, so access is per user and can be revoked individually. Personal (SAE) and PSK still use one shared secret, and MAC filtering is easy to spoof.", src:'original-2026-11', obj:'4.1' },
+    { domain:'secops', question:"A SIEM alert fires hundreds of times a day for a scheduled backup job that is known to be benign. Analysts have started ignoring the alert queue and missed a real incident. What should the team do FIRST?", options:["Tune the alert rule", "Disable SIEM alerting entirely", "Increase log retention", "Hire more analysts"], correct:[0], why:"Alert tuning, such as excluding the known-good backup job, cuts false positives so real alerts get attention. Disabling monitoring, keeping logs longer or adding staff don't fix the noisy rule.", src:'original-2026-11', obj:'4.4' },
+    { domain:'secops', question:"A department is retiring laptops with solid-state drives that will be resold. Data must not be recoverable, but the drives must still work. Which method fits BEST?", options:["Degaussing", "Cryptographic erase", "Quick format", "Physical shredding"], correct:[1], why:"Cryptographic (or ATA secure) erase destroys the encryption key or resets every cell, leaving the SSD reusable. Degaussing doesn't work on flash memory, a quick format leaves the data recoverable, and shredding destroys the drive.", src:'original-2026-11', obj:'4.2' },
+    { domain:'management', question:"A penetration tester is given network diagrams, source code and administrator documentation before testing begins. Which type of test is this?", options:["Unknown environment", "Partially known environment", "Known environment", "Passive reconnaissance"], correct:[2], why:"A known-environment (white-box) test gives the tester full internal information. Partially known gives limited details, unknown gives none, and passive reconnaissance is an information-gathering technique, not a test type.", src:'original-2026-11', obj:'5.5' },
+    { domain:'management', question:"A SaaS provider's enterprise customers want independent assurance that its security controls operated effectively throughout the past year, not just on one day. Which report fits BEST?", options:["SOC 2 Type 1", "SOC 2 Type 2", "Internal audit report", "Vendor self-assessment"], correct:[1], why:"A SOC 2 Type 2 report attests that controls operated effectively over a period, typically 6 to 12 months. Type 1 covers design at a single point in time. Internal audits and self-assessments aren't independent.", src:'original-2026-11', obj:'5.5' },
+    { domain:'management', question:"A quarterly phishing simulation shows 18% of employees clicked the test link. Leadership wants the click rate down next quarter without hurting reporting. What is the BEST next step?", options:["Give clickers short targeted training", "Block all external links in email", "Publicly list the users who failed", "Pause simulations until annual training"], correct:[0], why:"Short, targeted training right after a failure, followed by repeat simulations, is what lowers click rates. Shaming discourages people from reporting, blocking every link breaks business email, and pausing simulations removes the measurement.", src:'original-2026-11', obj:'5.6' },
+    { domain:'management', question:"After a risk assessment, management decides the controls needed to fully protect against a data breach cost more than they are worth. It buys a cyber insurance policy instead. Which risk response is this?", options:["Accept", "Transfer", "Avoid", "Mitigate"], correct:[1], why:"Insurance transfers the financial impact of the risk to a third party. Accepting means taking the risk as is, avoiding means stopping the risky activity, and mitigating means adding controls to reduce it.", src:'original-2026-11', obj:'5.2' },
+    { domain:'management', question:"A server is valued at $200,000. A flood would destroy 40% of its value, and floods are expected once every two years. What is the annualized loss expectancy (ALE)?", options:["$20,000", "$40,000", "$80,000", "$100,000"], correct:[1], why:"SLE = asset value × exposure factor = $200,000 × 0.40 = $80,000. ARO = 1 flood ÷ 2 years = 0.5. ALE = SLE × ARO = $80,000 × 0.5 = $40,000.", src:'original-2026-11', obj:'5.2' },
+    { domain:'management', question:"Before sending customer data to a new analytics vendor, a company wants the contractual ability to inspect the vendor's security controls itself. Which provision should the contract include?", options:["Service-level agreement", "Non-disclosure agreement", "Right-to-audit clause", "Memorandum of understanding"], correct:[2], why:"A right-to-audit clause lets the customer, or its auditor, examine the vendor's controls. An SLA sets performance targets, an NDA covers confidentiality, and an MOU is a non-binding statement of intent.", src:'original-2026-11', obj:'5.3' },
+    { domain:'management', question:"A European customer asks a company to delete all of the personal data it holds about them. Which data subject right is the customer exercising?", options:["Right of access", "Right to data portability", "Right to be forgotten", "Data minimization"], correct:[2], why:"Under GDPR, the right to erasure (the right to be forgotten) lets a data subject ask for their personal data to be deleted. Access lets them see their data, portability lets them take a copy elsewhere, and minimization is a principle the organization applies.", src:'original-2026-11', obj:'5.4' },
+    { domain:'management', question:"The SOC has a document that walks analysts step by step through what to do when a user reports a suspicious email: which tools to use, what to check and when to escalate. Which document type is this?", options:["Policy", "Standard", "Guideline", "Procedure"], correct:[3], why:"Step-by-step operational instructions are a procedure; a security playbook is one kind. A policy states intent and rules, a standard sets mandatory specifics, and a guideline is a recommendation.", src:'original-2026-11', obj:'5.1' }
   ];
 
   const RAW_APLUS_CORE1_BANK = [
@@ -18051,6 +18357,7 @@
     document.getElementById('jobsim-tab').style.display = tab === 'jobsim' ? 'block' : 'none';
     document.getElementById('careerprep-tab').style.display = tab === 'careerprep' ? 'block' : 'none';
     document.getElementById('planner-tab').style.display = tab === 'planner' ? 'block' : 'none';
+    document.getElementById('climastery-tab').style.display = tab === 'climastery' ? 'block' : 'none';
 
     document.getElementById('home-panel').style.display = 'none';
     document.getElementById('notes-toolbar').style.display = 'none';
@@ -18066,6 +18373,7 @@
     document.getElementById('jobsim-panel').style.display = 'none';
     document.getElementById('careerprep-panel').style.display = 'none';
     document.getElementById('planner-panel').style.display = 'none';
+    document.getElementById('climastery-panel').style.display = 'none';
     if(tab !== 'jobsim' && typeof jobSimActiveTimer !== 'undefined' && jobSimActiveTimer){ clearInterval(jobSimActiveTimer); jobSimActiveTimer = null; }
 
     const focusBtn = document.getElementById('focus-mode-btn');
@@ -18108,6 +18416,9 @@
     }else if(tab === 'careerprep'){
       document.getElementById('careerprep-panel').style.display = 'block';
       renderCareerPrep();
+    }else if(tab === 'climastery'){
+      document.getElementById('climastery-panel').style.display = 'block';
+      renderCliTab();
     }else if(tab === 'planner'){
       document.getElementById('planner-panel').style.display = 'block';
       renderStudyPlanner();
@@ -18277,6 +18588,199 @@
     const unseen = items.filter(i => !seen.has(i.question) && !seen.has(recentKey(i.question)));
     return unseen.length >= needed ? unseen : items;
   }
+
+
+  /* ---------- Command-Line Mastery tab (UI) ---------- */
+  const CLI_MASTERY_KEY = 'cybersec_cli_mastery_v1';
+  const CLI_MODE_LABELS = {
+    A: 'A · Recognition: description → type the command',
+    B: 'B · Reverse recall: command → what it does',
+    C: 'C · Scenario: situation → type the command',
+    D: 'D · Completion: fill in the missing option',
+    E: 'E · Terminal: troubleshooting task'
+  };
+  const cliTrainer = createCliTrainer({
+    getItem: k => { try{ return localStorage.getItem(k); }catch(e){ return null; } },
+    setItem: (k, v) => lsSet(k, v),
+    sm2: sm2NextState,
+    commands: CLI_COMMANDS
+  });
+  let cliSession = null;
+
+  function cliFilter(){
+    const plat = (document.getElementById('cli-plat') || {}).value || 'all';
+    const scope = (document.getElementById('cli-scope') || {}).value || 'core';
+    const mode = (document.getElementById('cli-mode') || {}).value || 'mixed';
+    const pbq = !!(document.getElementById('cli-pbq-priority') || {}).checked;
+    return { plat, coreOnly: scope === 'core', mode, pbqPriority: pbq };
+  }
+  function cliRelTime(ts){
+    if(!ts) return '—';
+    const d = ts - Date.now(), a = Math.abs(d);
+    const unit = a < 3600000 ? Math.max(1, Math.round(a / 60000)) + 'm' : a < 86400000 ? Math.round(a / 3600000) + 'h' : Math.round(a / 86400000) + 'd';
+    if(a < 60000) return 'now';
+    return d < 0 ? unit + ' ago' : 'in ' + unit;
+  }
+  function cliPrompt(cmd){ return cmd.plat === 'windows' ? 'C:\\>' : '$'; }
+  function cliExpected(card){
+    const c = card.cmd;
+    if(card.mode === 'A') return c.cmd;
+    if(card.mode === 'D' && c.comp){ const a = c.comp.ans[0]; const fill = a && a.flags ? a.flags : String(a); return c.comp.show.split('   (')[0].replace(/_+/, fill); }
+    return c.ex || c.cmd;
+  }
+  function renderCliSummary(){
+    const el = document.getElementById('cli-summary');
+    if(!el) return;
+    const s = cliTrainer.summary(cliFilter());
+    el.innerHTML = [
+      exposureStat(`${s.mastered}/${s.total}`, 'commands mastered'),
+      exposureStat(s.struggling, 'need work (missed repeatedly or in PBQs)'),
+      exposureStat(s.dueNow, 'cards due now'),
+      exposureStat(s.newCards, 'new cards'),
+      exposureStat(s.accuracy === null ? '—' : Math.round(s.accuracy * 100) + '%', 'recall accuracy')
+    ].join('');
+    const prog = document.getElementById('cli-progress');
+    if(prog){
+      const statusLabel = { new: 'New', learning: 'Learning', struggling: 'Needs work', mastered: 'Mastered' };
+      prog.innerHTML = `<div class="exposure-table-wrap"><table class="exposure-table"><thead><tr><th>Command</th><th>Platform</th><th>Status</th><th>Accuracy</th><th>Streak</th><th>Last review</th><th>Next review</th><th>PBQ misses</th></tr></thead><tbody>${
+        s.commands.sort((a, b) => ({ struggling: 0, learning: 1, new: 2, mastered: 3 }[a.status] - { struggling: 0, learning: 1, new: 2, mastered: 3 }[b.status])).map(x => `<tr class="cli-row-${x.status}">
+          <td><code>${escapeHtml(x.cmd)}</code>${x.core ? '' : ' <span class="cli-supp-tag">supplemental</span>'}</td>
+          <td>${x.plat === 'windows' ? 'Windows' : 'Linux'}</td>
+          <td>${statusLabel[x.status]}</td>
+          <td>${x.accuracy === null ? '—' : Math.round(x.accuracy * 100) + '%'}</td>
+          <td>${x.streak}${x.best > x.streak ? ` (best ${x.best})` : ''}</td>
+          <td>${cliRelTime(x.last)}</td>
+          <td>${x.nextDue ? cliRelTime(x.nextDue) : '—'}</td>
+          <td>${x.pbqMissed || ''}</td></tr>`).join('')}</tbody></table></div>`;
+    }
+    const ref = document.getElementById('cli-reference');
+    if(ref && !ref.dataset.built){
+      ref.dataset.built = '1';
+      ref.innerHTML = `<div class="exposure-table-wrap"><table class="exposure-table cli-ref-table"><thead><tr><th>Command</th><th>Platform</th><th>What it does</th></tr></thead><tbody>${
+        CLI_COMMANDS.map(c => `<tr><td><code>${escapeHtml(c.cmd)}</code>${c.core ? '' : ' <span class="cli-supp-tag">supplemental</span>'}</td><td>${c.plat === 'windows' ? 'Windows' : 'Linux'}</td><td class="cli-ref-what">${escapeHtml(c.what)}</td></tr>`).join('')}</tbody></table></div>`;
+    }
+  }
+  function renderCliTab(){
+    renderCliSummary();
+    if(!cliSession) renderCliIdle();
+  }
+  function renderCliIdle(message){
+    const area = document.getElementById('cli-card-area');
+    if(!area) return;
+    const s = cliTrainer.summary(cliFilter());
+    area.innerHTML = `<div class="cli-idle">
+      ${message ? `<div class="cli-idle-msg">${message}</div>` : ''}
+      <div>${s.dueNow} card${s.dueNow === 1 ? '' : 's'} due and ${s.newCards} new for this filter. A session takes up to 20 cards: due reviews first, then new ones.</div>
+    </div>`;
+  }
+  function startCliSession(practice){
+    const f = cliFilter();
+    let queue = practice ? cliTrainer.buildPractice(f, 15) : cliTrainer.buildSession(f, 20);
+    if(!queue.length){
+      cliSession = null;
+      const area = document.getElementById('cli-card-area');
+      area.innerHTML = `<div class="cli-idle"><div class="cli-idle-msg">All caught up for this filter: nothing is due.</div>
+        <button type="button" class="btn" id="cli-practice-btn">Practice anyway (weakest commands first)</button></div>`;
+      document.getElementById('cli-practice-btn').addEventListener('click', () => startCliSession(true));
+      return;
+    }
+    cliSession = { queue, idx: 0, correct: 0, answered: 0, practice: !!practice };
+    renderCliCard();
+  }
+  function renderCliCard(){
+    const area = document.getElementById('cli-card-area');
+    if(!cliSession || !area) return;
+    if(cliSession.idx >= cliSession.queue.length){
+      const n = cliSession.queue.length, ok = cliSession.correct;
+      cliSession = null;
+      renderCliSummary();
+      renderCliIdle(`Session complete: ${ok} of ${n} recalled. Cards you missed come back soon; ones you knew are spaced further out.`);
+      return;
+    }
+    const card = cliSession.queue[cliSession.idx];
+    const c = card.cmd;
+    const head = `<div class="cli-card-head"><span>Card ${cliSession.idx + 1} of ${cliSession.queue.length}</span><span>${escapeHtml(CLI_MODE_LABELS[card.mode])}</span><span class="cli-plat-tag cli-plat-${c.plat}">${c.plat === 'windows' ? 'Windows' : 'Linux'}</span>${c.core ? '' : '<span class="cli-supp-tag">supplemental</span>'}</div>`;
+    const typed = card.mode !== 'B';
+    let body = '';
+    if(card.mode === 'A') body = `<div class="cli-front">${escapeHtml(c.recog)}</div>`;
+    else if(card.mode === 'B') body = `<div class="cli-front">What does this command do, and when would you use it?</div><div class="cli-big-cmd"><code>${escapeHtml(c.cmd)}</code></div>`;
+    else if(card.mode === 'C') body = `<div class="cli-front">${escapeHtml(c.scen)}</div>`;
+    else if(card.mode === 'D') body = `<div class="cli-front">Type the missing part:</div><div class="cli-big-cmd"><code>${escapeHtml(c.comp.show)}</code></div>`;
+    else body = `<div class="cli-front"><strong>Task:</strong> ${escapeHtml(c.lab || c.scen)}</div>`;
+    const input = typed ? `<div class="pbq-cli-box cli-term">
+        <div id="cli-term-history"></div>
+        <div class="pbq-cli-input-row"><span>${escapeHtml(card.mode === 'D' ? '›' : cliPrompt(c))}</span>
+        <input type="text" id="cli-answer" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Type your answer" placeholder="${card.mode === 'D' ? 'missing part' : 'type the command'}"></div></div>
+        <div class="cli-actions"><button type="button" class="btn primary" id="cli-check-btn">Check (Enter)</button><button type="button" class="btn" id="cli-reveal-btn">I don't know: show me</button></div>`
+      : `<div class="cli-actions"><button type="button" class="btn primary" id="cli-reveal-btn">Show answer</button></div>`;
+    area.innerHTML = `<div class="cli-card">${head}${body}${input}<div id="cli-result"></div></div>`;
+    const inp = document.getElementById('cli-answer');
+    if(inp){
+      inp.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); cliCheck(card, inp.value, false); } });
+      try{ inp.focus(); }catch(e){}
+      document.getElementById('cli-check-btn').addEventListener('click', () => cliCheck(card, inp.value, false));
+    }
+    document.getElementById('cli-reveal-btn').addEventListener('click', () => cliCheck(card, inp ? inp.value : '', true));
+  }
+  function cliCheck(card, value, gaveUp){
+    if(card._answered) return;
+    const c = card.cmd;
+    let correct = null;
+    if(card.mode !== 'B'){
+      if(!gaveUp && !String(value || '').trim()) return;
+      correct = gaveUp ? false : (card.mode === 'D' ? cliTrainer.gradeCompletion(c, value) : card.mode === 'A' ? cliTrainer.gradeRecognition(c, value) : cliTrainer.gradeCommand(c, value));
+    }
+    card._answered = true;
+    cliSession.answered++;
+    if(correct) cliSession.correct++;
+    const inp = document.getElementById('cli-answer'); if(inp) inp.disabled = true;
+    ['cli-check-btn', 'cli-reveal-btn'].forEach(id => { const b = document.getElementById(id); if(b) b.style.display = 'none'; });
+    const hist = document.getElementById('cli-term-history');
+    if(hist && card.mode === 'E'){
+      const shown = correct ? value : cliExpected(card);
+      hist.innerHTML = `<div class="cli-term-line"><span>${escapeHtml(cliPrompt(c))}</span> ${escapeHtml(String(shown).trim())}</div><pre class="cli-term-out">${escapeHtml(c.out || '')}</pre>`;
+    }
+    const verdict = correct === null ? '' : correct
+      ? `<div class="cli-verdict cli-ok">✓ Correct${card.mode === 'D' ? '' : ` · <code>${escapeHtml(normalizeShown(value, c))}</code> is accepted`}</div>`
+      : `<div class="cli-verdict cli-bad">${gaveUp ? 'Answer' : '✗ Not quite'}: <code>${escapeHtml(cliExpected(card))}</code>${!gaveUp && String(value).trim() ? ` <span class="cli-you">(you typed <code>${escapeHtml(String(value).trim())}</code>)</span>` : ''}</div>`;
+    const showOut = (card.mode === 'C' || (card.mode === 'E' && !hist)) && c.out;
+    const res = document.getElementById('cli-result');
+    const suggest = correct === null ? '' : (correct ? 'know' : 'dk');
+    res.innerHTML = `${verdict}
+      ${card.mode === 'B' ? `<div class="cli-big-cmd"><code>${escapeHtml(c.cmd)}</code></div>` : ''}
+      <div class="cli-what"><strong>What it does:</strong> ${escapeHtml(c.what)}</div>
+      ${showOut ? `<pre class="cli-term-out cli-term-standalone">${escapeHtml(c.out)}</pre>` : ''}
+      ${c.tip ? `<div class="cli-tip"><strong>${card.mode === 'E' || card.mode === 'C' ? 'Reading the output' : 'Exam tip'}:</strong> ${escapeHtml(c.tip)}</div>` : ''}
+      <div class="cli-rate-label">How well did you know it?</div>
+      <div class="cli-rate">
+        <button type="button" class="btn cli-rate-btn${suggest === 'dk' ? ' cli-suggest' : ''}" data-r="dk">1 · Didn't Know</button>
+        <button type="button" class="btn cli-rate-btn" data-r="struggled">2 · Struggled</button>
+        <button type="button" class="btn cli-rate-btn${suggest === 'know' ? ' cli-suggest' : ''}" data-r="know">3 · I Know This</button>
+      </div>`;
+    const rate = r => {
+      if(card._rated) return; card._rated = true;
+      document.removeEventListener('keydown', keyRate);
+      cliTrainer.review(card, r, correct);
+      cliSession.idx++;
+      renderCliSummary();
+      renderCliCard();
+    };
+    const keyRate = e => { if(currentView !== 'climastery') return; const m = { '1': 'dk', '2': 'struggled', '3': 'know' }[e.key]; if(m){ e.preventDefault(); rate(m); } };
+    res.querySelectorAll('.cli-rate-btn').forEach(b => b.addEventListener('click', () => rate(b.getAttribute('data-r'))));
+    setTimeout(() => document.addEventListener('keydown', keyRate), 0);
+    const first = res.querySelector('.cli-suggest') || res.querySelector('.cli-rate-btn');
+    try{ first && first.focus(); }catch(e){}
+  }
+  function normalizeShown(value, c){ return cliTrainer.normalize(value, c.plat); }
+  (function initCliMastery(){
+    const start = document.getElementById('cli-start-btn');
+    if(!start) return;
+    start.addEventListener('click', () => startCliSession(false));
+    ['cli-plat', 'cli-scope', 'cli-mode', 'cli-pbq-priority'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.addEventListener('change', () => { cliSession = null; renderCliTab(); });
+    });
+  })();
 
   /* Deep-clones a PBQ bank definition into a fresh per-attempt instance so
      shuffling/mutation during one exam never leaks into the shared bank or
@@ -19217,6 +19721,7 @@
       if(isCorrect) correctCount++;
       if(!isPBQ && !isCorrect) addToMissedQueue(q);
       if(!isPBQ && q.id) exposureResults.push({ id: q.id, correct: !!isCorrect, fresh: !!(q._exposure && q._exposure.fresh) });
+      if(q.type === 'cli' && q.example){ try{ cliTrainer.recordPbqResult(q.example, !!isCorrect); }catch(e){} }
       const dKey = q.domain || 'unassigned';
       if(!domainStats[dKey]) domainStats[dKey] = { correct: 0, total: 0, label: q.domainLabel || 'Unassigned domain' };
       domainStats[dKey].total++;
@@ -21172,7 +21677,7 @@
   const BACKUP_KEYS = [
     STORAGE_KEY, TRACK_KEY, MISSED_QUEUE_KEY, PROGRESS_KEY, XP_KEY,
     SOUND_KEY, FC_MASTERY_KEY, BADGE_SEEN_KEY, ACTIVITY_LOG_KEY, THEME_KEY, EXAM_DATE_KEY,
-    EXPOSURE_STORAGE_KEY, EXAM_POLICY_KEY, EXAM_SUPPLEMENTAL_KEY
+    EXPOSURE_STORAGE_KEY, EXAM_POLICY_KEY, EXAM_SUPPLEMENTAL_KEY, CLI_MASTERY_KEY
   ];
 
   function exportBackup(){
