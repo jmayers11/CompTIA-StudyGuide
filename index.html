@@ -3628,7 +3628,22 @@
     .dash-stat-grid{ grid-template-columns:repeat(2, 1fr); }
     .exam-qgrid-btn{ width:30px; height:30px; }
   }
-  </style>
+  
+  /* Question exposure dashboard + post-exam freshness panel */
+  .exposure-details{ margin-top:12px; border:1px solid var(--border); border-radius:10px; padding:10px 12px; }
+  .exposure-details > summary{ cursor:pointer; font-weight:700; font-size:13px; }
+  .exposure-details[open] > summary{ margin-bottom:10px; }
+  .exposure-headline{ font-size:13px; line-height:1.5; }
+  .exposure-stat-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(110px, 1fr)); gap:8px; }
+  .exposure-stat{ border:1px solid var(--border); border-radius:8px; padding:8px 10px; }
+  .exposure-stat-value{ font-size:18px; font-weight:700; }
+  .exposure-stat-label{ font-size:11px; color:var(--muted); line-height:1.3; }
+  .exposure-table-wrap{ overflow-x:auto; margin-top:12px; }
+  .exposure-table{ width:100%; border-collapse:collapse; font-size:12px; }
+  .exposure-table th, .exposure-table td{ text-align:left; padding:5px 6px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  .exposure-table th{ color:var(--muted); font-weight:600; }
+  .exam-freshness-box{ border:1px solid var(--border); border-radius:10px; padding:12px; margin:0 0 14px; }
+</style>
 </head>
 <body>
 
@@ -4048,6 +4063,15 @@
           <label class="qz-checkbox-row" style="margin-top:12px;">
             <input type="checkbox" id="exam-use-weighting" checked> <span>Weight questions by official domain blueprint</span>
           </label>
+          <div class="qz-config-label" style="margin-top:14px;">Repetition policy</div>
+          <select id="exam-policy-select">
+            <option value="strict" selected>Strict — never-seen questions first; nothing from your last 3 Cold Runs (recommended)</option>
+            <option value="balanced">Balanced — mostly unseen, with up to ~15% older repeats</option>
+            <option value="review">Review — up to 60% questions you previously missed</option>
+          </select>
+          <label class="qz-checkbox-row" id="exam-supplemental-row" style="margin-top:10px;">
+            <input type="checkbox" id="exam-include-supplemental"> <span>Include supplemental packet-analysis questions (tcpdump, Wireshark, OSI and IPv6 basics — beyond SY0-701, off by default)</span>
+          </label>
           <label class="qz-checkbox-row" style="margin-top:12px;">
             <input type="checkbox" id="exam-instant-feedback" checked> <span>⚡ Instant feedback — show right/wrong and why after each question (instead of waiting until you submit)</span>
           </label>
@@ -4070,6 +4094,10 @@
           </div>
 
           <div id="exam-pool-info" class="qz-pool-info" style="margin-top:10px;"></div>
+          <details id="exam-exposure-details" class="exposure-details">
+            <summary>📊 Question Exposure Dashboard — how much of the bank you've seen</summary>
+            <div id="exam-exposure-dashboard"></div>
+          </details>
           <button id="exam-start-btn" class="btn primary" style="width:100%; margin-top:14px;">Start Exam</button>
           <button type="button" id="exam-coldrun-btn" class="btn" style="width:100%; margin-top:10px; font-size:12px; padding:8px 10px; border:1px solid var(--accent);">🎯 Cold Run — Full-Length Mock Exam (official question count &amp; time limit, blueprint-weighted, one uninterrupted timed pass)</button>
         </div>
@@ -4313,6 +4341,297 @@
       return false;
     }
   }
+  /* EXPOSURE_ENGINE_START */
+  /* ---------- Question exposure engine (Cold Run repetition blocker) ----------
+     Persistent per-certification record of every question and PBQ served, used to
+     pick never-seen questions first, keep anything from the last 3 Cold Runs out
+     whenever enough other questions exist, and fade older questions back in
+     gradually. Pure logic: storage is injected, so the same code runs in the
+     automated tests. Question IDs are the same text fingerprint the old
+     recent-exam list used, so that history migrates 1:1.
+
+     Stored shape (localStorage 'cybersec_exposure_v1'):
+       { [cert]: { v:1, runs:<Cold Runs taken>, q:{ id:[seen, lastRun, lastTs, right, wrong] },
+                   p:{ pbqId:[seen, lastRun] }, hist:[ per-exam summary ] } }
+     lastRun is the Cold Run number the question was last served in (or, for a
+     non-Cold-Run exam, the NEXT Cold Run's number, so it counts as recent). */
+  function createExposureEngine(opts){
+    const KEY = 'cybersec_exposure_v1';
+    const get = opts.getItem, set = opts.setItem;
+    const rand = opts.random || Math.random;
+    const groupsByCert = opts.groups || {};
+    const RECENT = 3, RAMP = 3, HIST_MAX = 40;
+    let data = {};
+    try{ data = JSON.parse(get(KEY)) || {}; }catch(e){ data = {}; }
+    if(typeof data !== 'object' || Array.isArray(data)) data = {};
+
+    function qid(text){
+      text = String(text || '');
+      let h = 5381;
+      for(let i = 0; i < text.length; i++){ h = ((h << 5) + h + text.charCodeAt(i)) >>> 0; }
+      return '#' + h.toString(36) + text.length.toString(36);
+    }
+    function save(){ return set(KEY, JSON.stringify(data)); }
+    function rec(cert){
+      if(!data[cert] || typeof data[cert] !== 'object') data[cert] = { v: 1, runs: 0, q: {}, p: {}, hist: [] };
+      const r = data[cert];
+      if(!r.q) r.q = {}; if(!r.p) r.p = {}; if(!Array.isArray(r.hist)) r.hist = []; if(typeof r.runs !== 'number') r.runs = 0;
+      return r;
+    }
+    /* One-time import of the old rolling "recent exam questions" list: those questions
+       are treated as served just before the first tracked Cold Run, so they stay out of
+       the next 3 Cold Runs and then fade back in like any other seen question. */
+    function migrateLegacy(cert, legacyList){
+      const r = rec(cert);
+      if(r.migrated) return 0;
+      if(!Array.isArray(legacyList) || !legacyList.length){ r.migrated = true; save(); return 0; }
+      let n = 0;
+      legacyList.forEach(e => {
+        const id = (typeof e === 'string' && e.charAt(0) === '#') ? e : qid(e);
+        if(!r.q[id]){ r.q[id] = [1, r.runs, 0, 0, 0]; n++; }
+      });
+      r.migrated = true; save();
+      return n;
+    }
+    const groupIndexCache = {};
+    function groupIndex(cert){
+      if(groupIndexCache[cert]) return groupIndexCache[cert];
+      const idx = {};
+      (groupsByCert[cert] || []).forEach((g, gi) => g.forEach(id => { idx[id] = gi; }));
+      return (groupIndexCache[cert] = idx);
+    }
+    function since(r, id){ const e = r.q[id]; return e ? (r.runs + 1) - e[1] : Infinity; }
+    /* Describes where a question stands for the next exam. tier 0 = never seen (nor any
+       near-duplicate), 1 = never seen but a near-duplicate was seen long ago, 2 = seen,
+       outside the recent window, 3 = seen (or near-duplicate seen) in the last 3 Cold Runs. */
+    function standing(cert, id){
+      const r = rec(cert), gi = groupIndex(cert)[id];
+      const own = r.q[id];
+      let mateSeen = false, mateRecent = false, mateCount = 0;
+      if(gi !== undefined){
+        (groupsByCert[cert][gi] || []).forEach(m => {
+          if(m === id || !r.q[m]) return;
+          mateSeen = true; mateCount += r.q[m][0];
+          if(since(r, m) <= RECENT) mateRecent = true;
+        });
+      }
+      const s = since(r, id);
+      let tier;
+      if(own && s <= RECENT) tier = 3;
+      else if(mateRecent) tier = 3;
+      else if(own) tier = 2;
+      else if(mateSeen) tier = 1;
+      else tier = 0;
+      return { tier, seen: own ? own[0] : 0, since: s, right: own ? own[3] : 0, wrong: own ? own[4] : 0, mateCount, group: gi };
+    }
+    function weightFor(st){
+      const exposure = st.seen + 0.5 * st.mateCount;
+      if(st.tier === 0) return 1;
+      if(st.tier === 1) return 1 / (1 + exposure);
+      if(st.tier === 2) return Math.min(1, (st.since - RECENT) / RAMP) / Math.pow(1 + exposure, 2);
+      return Math.max(1, st.since) / Math.pow(1 + exposure, 2); // recent: oldest first, only as a last resort
+    }
+    /* Weighted sampling without replacement (Efraimidis–Spirakis): random within the
+       eligibility rules, biased by weight. */
+    function weightedOrder(cands){
+      return cands.map(c => ({ c, k: Math.pow(rand() || 1e-12, 1 / Math.max(c.w, 1e-9)) }))
+                  .sort((a, b) => b.k - a.k).map(x => x.c);
+    }
+    function pickFromDomain(cert, items, need, policy, usedGroups, usedIds){
+      const cands = items.map(it => { const st = standing(cert, it.id); return { it, st, w: weightFor(st) }; });
+      const chosen = [];
+      const take = (list, limit, wOf) => {
+        const keyed = list.map(c => ({ c, w: wOf ? wOf(c) : c.w }));
+        for(const k of weightedOrder(keyed)){
+          const c = k.c;
+          if(chosen.length >= need || limit <= 0) break;
+          if(usedIds.has(c.it.id)) continue;
+          if(c.st.group !== undefined && usedGroups.has(c.st.group)) continue;
+          chosen.push(c); usedIds.add(c.it.id); limit--;
+          if(c.st.group !== undefined) usedGroups.add(c.st.group);
+        }
+      };
+      const byTier = t => cands.filter(c => c.st.tier === t);
+      if(policy === 'review'){
+        take(cands.filter(c => c.st.wrong > 0), Math.ceil(need * 0.6), c => (c.st.wrong + 1) / (c.st.right + 1));
+      }else if(policy === 'balanced'){
+        take(byTier(2), Math.ceil(need * 0.15));
+      }
+      [0, 1, 2, 3].forEach(t => take(byTier(t), need));
+      if(chosen.length < need){ // near-duplicate rule relaxed only if the domain cannot be filled otherwise
+        for(const k of weightedOrder(cands)){
+          if(chosen.length >= need) break;
+          if(!usedIds.has(k.it.id)){ chosen.push(k); usedIds.add(k.it.id); }
+        }
+      }
+      return chosen;
+    }
+    /* pools: { domainKey: [items with .id] }, allocation: { domainKey: count } */
+    function select(cert, pools, allocation, policy){
+      policy = policy || 'strict';
+      const usedGroups = new Set(), usedIds = new Set(), out = [];
+      Object.keys(allocation).forEach(k => {
+        const items = (pools[k] || []).filter((it, i, arr) => arr.findIndex(x => x.id === it.id) === i);
+        pickFromDomain(cert, items, Math.min(allocation[k], items.length), policy, usedGroups, usedIds)
+          .forEach(c => { c.it._exposure = { tier: c.st.tier, fresh: c.st.seen === 0, recent: c.st.seen > 0 && c.st.since <= RECENT, seen: c.st.seen }; out.push(c.it); });
+      });
+      return out;
+    }
+    function selectPBQs(cert, defs, count, idOf){
+      const r = rec(cert);
+      const cands = defs.map(d => { const id = idOf(d), e = r.p[id]; const s = e ? (r.runs + 1) - e[1] : Infinity;
+        const tier = !e ? 0 : (s > RECENT ? 1 : 2);
+        return { d, id, tier, w: !e ? 1 : (tier === 1 ? 1 / Math.pow(1 + e[0], 2) : Math.max(1, s) / Math.pow(1 + e[0], 2)) }; });
+      const chosen = [];
+      [0, 1, 2].forEach(t => weightedOrder(cands.filter(c => c.tier === t)).forEach(c => { if(chosen.length < count) chosen.push(c); }));
+      return chosen.map(c => c.d);
+    }
+    /* Call when an exam starts: every question shown counts as seen. */
+    function recordServed(cert, ids, pbqIds, meta){
+      const r = rec(cert), stamp = r.runs + 1, now = Date.now();
+      let fresh = 0, repeated = 0, last3 = 0;
+      ids.forEach(id => {
+        const e = r.q[id];
+        if(!e){ fresh++; r.q[id] = [1, stamp, now, 0, 0]; }
+        else{ repeated++; if(stamp - e[1] <= RECENT) last3++; e[0]++; e[1] = stamp; e[2] = now; }
+      });
+      (pbqIds || []).forEach(id => { const e = r.p[id]; if(!e) r.p[id] = [1, stamp]; else{ e[0]++; e[1] = stamp; } });
+      const coldRun = !!(meta && meta.coldRun);
+      if(coldRun) r.runs++;
+      const entry = { run: coldRun ? r.runs : null, coldRun, ts: now, n: ids.length, pbq: (pbqIds || []).length,
+        fresh, repeated, last3, unique: new Set(ids).size, policy: (meta && meta.policy) || 'strict' };
+      r.hist.push(entry); if(r.hist.length > HIST_MAX) r.hist = r.hist.slice(-HIST_MAX);
+      save();
+      return entry;
+    }
+    /* Call when an exam is submitted. results: [{ id, correct, fresh }] */
+    function recordResults(cert, results, entryTs){
+      const r = rec(cert);
+      let fc = 0, ft = 0, rc = 0, rt = 0, c = 0;
+      results.forEach(x => {
+        const e = r.q[x.id];
+        if(e){ if(x.correct) e[3]++; else e[4]++; }
+        if(x.correct) c++;
+        if(x.fresh){ ft++; if(x.correct) fc++; } else { rt++; if(x.correct) rc++; }
+      });
+      const h = r.hist.find(h => h.ts === entryTs);
+      if(h){ h.correct = c; h.graded = results.length; h.freshCorrect = fc; h.freshTotal = ft; h.repeatCorrect = rc; h.repeatTotal = rt; }
+      save();
+    }
+    function summary(cert, poolsByDomain, pbqIds){
+      const r = rec(cert), domains = {};
+      let total = 0, seen = 0;
+      Object.keys(poolsByDomain).forEach(k => {
+        const ids = Array.from(new Set(poolsByDomain[k].map(it => it.id)));
+        const s = ids.filter(id => r.q[id]).length;
+        domains[k] = { total: ids.length, seen: s };
+        total += ids.length; seen += s;
+      });
+      const pSeen = (pbqIds || []).filter(id => r.p[id]).length;
+      return { runs: r.runs, total, seen, unseen: total - seen, pct: total ? seen / total : 0, domains,
+        pbqTotal: (pbqIds || []).length, pbqSeen: pSeen, hist: r.hist.slice() };
+    }
+    function reset(cert){ delete data[cert]; save(); }
+    function raw(){ return data; }
+    return { qid, migrateLegacy, standing, select, selectPBQs, recordServed, recordResults, summary, reset, raw, RECENT };
+  }
+  /* EXPOSURE_ENGINE_END */
+
+  /* EXPOSURE_DATA_START */
+  /* Near-duplicate groups (same concept, near-identical wording) share an exposure penalty and never
+     appear together in one exam. Supplemental = networking-basics and packet-tool trivia from the HTB
+     traffic-analysis notes: kept in the bank, but left out of Security+ exams unless the user opts in. */
+  const EXPOSURE_GROUPS = { security_plus: [["#pzadvg3s", "#z4ebat3s"], ["#1s29uun4l", "#6tv99r5v"], ["#12celr31u", "#3bisoz2c"], ["#187k0o63e", "#sm4e4y35"], ["#13iyrpp41", "#rttmlj37"], ["#v57ki85g", "#16dbyzc3m"], ["#729wj54b", "#op5esh5l"], ["#9kezqu60", "#13b7r4a3y"], ["#1o7vejf44", "#1ui39k83o"], ["#1k38dms2w", "#12u0o3r3y", "#g7dikq2o", "#qozs7w4q", "#1vb4f7f2s"], ["#1sxhb7b26", "#th0glq2d"]] };
+  const EXPOSURE_SUPPLEMENTAL = ["#klvpln2b", "#15e5xgh3q", "#1s1uqn3q", "#1ofj5nn5e", "#htv7fr3c", "#t5m8yo3c", "#rsml1x2h", "#p6chqy35", "#1m0one128", "#knhrya1p", "#ldtb663w", "#cb13ln3p", "#y73acq28", "#3qvbal32", "#10l6u5h14", "#l5pkfm2n", "#k5g6752r", "#9ugpe84i", "#7qwmhj1u", "#gmnopu43", "#7qhbmx2a", "#1hgdzc28", "#1dqkvw3c", "#1x1i9e63y", "#1u8h20b3o", "#1wit7ay2f", "#168padt2c", "#7ggtxv27", "#18ezorf3i", "#1c2ms0c2e", "#i53ith1t", "#1h7d6zc20", "#lwjpi41u", "#17ivp9a1t", "#n3t16h26", "#1r6qr8g1v", "#dtl38z1b", "#njyxzh20", "#19o1jmez", "#6wptqd1q", "#1ethnk71k", "#1jzp3sf37", "#14hg5du3b", "#vcspl131", "#hg7mbh31", "#142azxl2m", "#13bnx7336", "#19ddhe222", "#1fjaiah1y", "#wg957z22", "#8nnjf93a", "#uy7t5t1y", "#ztipdu1x", "#njtj5p23", "#9ore1216", "#ibulzq1k", "#i4gluf1p", "#471uts4b", "#kndzs12j", "#skjz2g2k", "#oe39ot1y", "#a1hh4828", "#15tsx7g12", "#y52rhe1q", "#jno6141x", "#1iiswts1f", "#1vtfbyc1o", "#l1u8243f", "#8oo9ck2o", "#1aus2lq2b", "#jygwas2d", "#4srsse3c", "#rwgfjd3d", "#hrnnkx3w", "#fu9jzg3p", "#1v32rso1r", "#9hoz9g32", "#amzfnt2n", "#1gl7i7p3z", "#12celr31u", "#3bisoz2c", "#100havn2l", "#17qj27j28", "#1th27j21", "#1lhx2mh3b", "#1f388p047", "#w79yvh34", "#wszn9v3o", "#1h7di4c40", "#1ghsdck3e", "#g1z7cy2n"];
+  /* EXPOSURE_DATA_END */
+
+  const EXPOSURE_STORAGE_KEY = 'cybersec_exposure_v1';
+  const EXAM_POLICY_KEY = 'cybersec_exam_policy_v1';
+  const EXAM_SUPPLEMENTAL_KEY = 'cybersec_exam_supplemental_v1';
+  const EXPOSURE_SUPPLEMENTAL_SET = new Set(EXPOSURE_SUPPLEMENTAL);
+  const exposure = createExposureEngine({
+    getItem: k => { try{ return localStorage.getItem(k); }catch(e){ return null; } },
+    setItem: (k, v) => lsSet(k, v),
+    groups: EXPOSURE_GROUPS
+  });
+  let examStartingColdRun = false;
+  function migrateExposureFor(certKey){ try{ exposure.migrateLegacy(certKey, recentExamQuestions[certKey] || []); }catch(e){} }
+  function getExamPolicy(){ const el = document.getElementById('exam-policy-select'); const v = el ? el.value : 'strict'; return ['strict','balanced','review'].indexOf(v) !== -1 ? v : 'strict'; }
+  function includeSupplemental(){ const el = document.getElementById('exam-include-supplemental'); return !!(el && el.checked); }
+  function withExposureId(q){ if(!q.id) q.id = exposure.qid(q.question); return q; }
+
+  function selectReadyExamQuestions(count, useWeighting, source, certKey){
+    migrateExposureFor(certKey);
+    const policy = getExamPolicy();
+    if(useWeighting){
+      const domains = CERTIFICATIONS[certKey].domains;
+      const pools = buildReadyDomainPools(source, certKey);
+      Object.keys(pools).forEach(k => pools[k].forEach(withExposureId));
+      const allocation = computeDomainAllocation(count, pools, domains);
+      return shuffle(exposure.select(certKey, pools, allocation, policy));
+    }
+    const full = buildReadyFullPool(source, certKey).map(withExposureId);
+    return shuffle(exposure.select(certKey, { all: full }, { all: Math.min(count, full.length) }, policy));
+  }
+
+  /* ---------- Question Exposure Dashboard ---------- */
+  function exposureStat(value, label){
+    return `<div class="exposure-stat"><div class="exposure-stat-value">${value}</div><div class="exposure-stat-label">${escapeHtml(label)}</div></div>`;
+  }
+  function exposurePbqIds(certKey){ return PBQ_BANK.filter(p => pbqCertOf(p) === certKey).map(p => exposure.qid(p.prompt)); }
+  function renderExposureDashboard(){
+    const el = document.getElementById('exam-exposure-dashboard');
+    if(!el) return;
+    const certKey = getActiveCert();
+    const cert = CERTIFICATIONS[certKey];
+    migrateExposureFor(certKey);
+    const pools = buildReadyDomainPools('bank', certKey);
+    Object.keys(pools).forEach(k => pools[k].forEach(withExposureId));
+    const s = exposure.summary(certKey, pools, exposurePbqIds(certKey));
+    const pct = Math.round(s.pct * 100);
+    const domainRows = cert.domains.map(d => {
+      const ds = s.domains[d.key] || { seen: 0, total: 0 };
+      const dp = ds.total ? Math.round(ds.seen / ds.total * 100) : 0;
+      return `<div class="exam-domain-bar-row">
+        <div class="exam-domain-bar-label"><span><span class="domain-dot" style="background:${domainColor(d.key)};"></span>${escapeHtml(d.label)}</span><span>${ds.seen}/${ds.total} seen · ${ds.total - ds.seen} unseen</span></div>
+        <div class="exam-domain-bar-track"><div class="exam-domain-bar-fill" style="width:${dp}%; background:${domainColor(d.key)};"></div></div>
+      </div>`;
+    }).join('');
+    const hist = s.hist.slice(-8).reverse();
+    const histRows = hist.map(h => {
+      const when = new Date(h.ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      const kind = h.coldRun ? `Cold Run #${h.run}` : 'Practice exam';
+      const freshAcc = h.freshTotal ? `${Math.round(h.freshCorrect / h.freshTotal * 100)}%` : (h.graded ? '—' : 'not submitted');
+      return `<tr><td>${when}</td><td>${kind}</td><td>${h.n}</td><td>${h.fresh}</td><td>${h.repeated}</td><td>${h.last3}</td><td>${freshAcc}</td></tr>`;
+    }).join('');
+    el.innerHTML = `
+      <div class="exposure-headline">${escapeHtml(cert.label)}: you've seen <strong>${s.seen}</strong> of ${s.total} exam questions (${pct}%). <strong>${s.unseen}</strong> are still unseen.</div>
+      <div class="exam-domain-bar-track" style="margin:8px 0 12px;"><div class="exam-domain-bar-fill" style="width:${pct}%; background:var(--accent);"></div></div>
+      <div class="exposure-stat-grid">
+        ${exposureStat(s.runs, 'Cold Runs taken')}
+        ${exposureStat(s.unseen, 'questions unseen')}
+        ${exposureStat(`${s.pbqSeen}/${s.pbqTotal}`, 'PBQs seen')}
+        ${exposureStat(getExamPolicy().replace(/^./, c => c.toUpperCase()), 'repetition policy')}
+      </div>
+      <div class="exam-domain-breakdown" style="margin-top:12px;">${domainRows}</div>
+      ${histRows ? `<div class="exposure-table-wrap"><table class="exposure-table"><thead><tr><th>Date</th><th>Exam</th><th>Qs</th><th>New</th><th>Repeats</th><th>From last 3</th><th>Score on new</th></tr></thead><tbody>${histRows}</tbody></table></div>` : '<div class="qz-pool-info">No exams tracked yet — start a Cold Run and your exposure history appears here.</div>'}
+      <div class="qz-pool-info" style="margin-top:8px;">Strict keeps every question from your last ${exposure.RECENT} Cold Runs out while enough unseen questions remain, then brings older ones back gradually. Near-duplicate questions count as seen together.</div>
+      <button type="button" id="exam-exposure-reset-btn" class="btn" style="margin-top:10px; font-size:12px; padding:6px 10px;">Reset exposure history for ${escapeHtml(cert.label)}</button>`;
+    const resetBtn = document.getElementById('exam-exposure-reset-btn');
+    if(resetBtn) resetBtn.addEventListener('click', () => {
+      if(!confirm(`Reset question exposure history for ${cert.label}? Every question will count as unseen again. Your scores, XP and missed-question queue are not affected.`)) return;
+      exposure.reset(certKey);
+      exposure.migrateLegacy(certKey, []); // marks the old recent list as already imported, so it isn't re-applied
+      renderExposureDashboard();
+      showToast('Exposure history reset');
+    });
+  }
+  function syncExamExposureControls(){
+    const row = document.getElementById('exam-supplemental-row');
+    if(row) row.style.display = getActiveCert() === 'security_plus' ? '' : 'none';
+    renderExposureDashboard();
+  }
+
   const TRACK_KEY = 'cybersec_track_v1';
   /* Tracks are the app's "front door" — a lightweight scope layer on top of
      the existing examCert field already present on every note. Choosing a
@@ -17871,7 +18190,10 @@
     let list = [];
     if(source === 'bank' || source === 'both'){
       const bank = QUESTION_BANKS[certKey] || [];
-      list.push(...bank.filter(q => q.domain === domainKey).map(q => ({
+      list.push(...bank.filter(q => q.domain === domainKey)
+        .filter(q => includeSupplemental() || !EXPOSURE_SUPPLEMENTAL_SET.has(exposure.qid(q.question)))
+        .map(q => ({
+        id: exposure.qid(q.question),
         domain: q.domain, question: q.question, options: shuffle(q.options), answer: q.answer,
         explanation: q.explanation || '',
         domainLabel: domainLabelFor(certKey, domainKey), fromBank: true
@@ -17956,22 +18278,6 @@
     return unseen.length >= needed ? unseen : items;
   }
 
-  function selectReadyExamQuestions(count, useWeighting, source, certKey){
-    const domains = CERTIFICATIONS[certKey].domains;
-    if(useWeighting){
-      const pools = buildReadyDomainPools(source, certKey);
-      const allocation = computeDomainAllocation(count, pools, domains);
-      let items = [];
-      domains.forEach(d => {
-        const pool = preferUnseenQuestions(pools[d.key], certKey, allocation[d.key]);
-        items.push(...shuffle(pool).slice(0, allocation[d.key]));
-      });
-      return shuffle(items);
-    }
-    const fullPool = preferUnseenQuestions(buildReadyFullPool(source, certKey), certKey, count);
-    return shuffle(fullPool).slice(0, count);
-  }
-
   /* Deep-clones a PBQ bank definition into a fresh per-attempt instance so
      shuffling/mutation during one exam never leaks into the shared bank or
      a different attempt. */
@@ -18014,8 +18320,9 @@
     if(count <= 0) return [];
     let source = certKey ? PBQ_BANK.filter(p => pbqCertOf(p) === certKey) : PBQ_BANK;
     if(pbqPracticeFilterType) source = source.filter(p => p.type === pbqPracticeFilterType);
-    const picked = shuffle(source.slice()).slice(0, Math.min(count, source.length));
-    return picked.map(instantiatePBQ);
+    // unseen PBQs first, then ones not used in the last 3 Cold Runs (history in the exposure engine)
+    const picked = exposure.selectPBQs(certKey || 'all', source.slice(), Math.min(count, source.length), d => exposure.qid(d.prompt));
+    return shuffle(picked).map(def => { const inst = instantiatePBQ(def); inst._pbqId = exposure.qid(def.prompt); return inst; });
   }
 
   function renderExamDomainCoverage(){
@@ -18902,12 +19209,14 @@
     let correctCount = 0;
     const domainStats = {};
     const log = [];
+    const exposureResults = [];
     examState.questions.forEach((q, i) => {
       const grade = gradeExamQuestion(q, examState.selections[i]);
       const { isCorrect, chosenText, answerText, isPBQ } = grade;
 
       if(isCorrect) correctCount++;
       if(!isPBQ && !isCorrect) addToMissedQueue(q);
+      if(!isPBQ && q.id) exposureResults.push({ id: q.id, correct: !!isCorrect, fresh: !!(q._exposure && q._exposure.fresh) });
       const dKey = q.domain || 'unassigned';
       if(!domainStats[dKey]) domainStats[dKey] = { correct: 0, total: 0, label: q.domainLabel || 'Unassigned domain' };
       domainStats[dKey].total++;
@@ -18925,7 +19234,40 @@
     awardXp(50 + (passed ? 100 : 0));
     const certLbl = CERTIFICATIONS[examState.certKey] ? CERTIFICATIONS[examState.certKey].label : (examState.certKey || 'Network+');
     logActivity(`🎓 Exam completed — ${certLbl} · ${scaledScore}/900 · ${passed ? 'PASSED' : 'not passed'}`);
-    renderExamResults({ correctCount, total, scaledScore, passed, passingScore, domainStats, log });
+    let freshness = null;
+    try{
+      const ck = examState.certKey || 'network_plus';
+      if(examState.exposureEntry) exposure.recordResults(ck, exposureResults, examState.exposureEntry.ts);
+      const pools = buildReadyDomainPools('bank', ck);
+      Object.keys(pools).forEach(k => pools[k].forEach(withExposureId));
+      const sum = exposure.summary(ck, pools, exposurePbqIds(ck));
+      const freshRes = exposureResults.filter(r => r.fresh);
+      freshness = { entry: examState.exposureEntry, summary: sum,
+        freshTotal: freshRes.length, freshCorrect: freshRes.filter(r => r.correct).length };
+    }catch(e){ freshness = null; }
+    renderExamResults({ correctCount, total, scaledScore, passed, passingScore, domainStats, log, freshness });
+  }
+
+  function renderFreshnessPanel(fr){
+    if(!fr || !fr.entry) return '';
+    const e = fr.entry, s = fr.summary;
+    const mc = e.n || 0;
+    const uniquePct = mc ? Math.round(e.unique / mc * 100) : 100;
+    const freshLine = fr.freshTotal
+      ? `On the ${fr.freshTotal} questions you had never seen, you scored ${fr.freshCorrect}/${fr.freshTotal} (${Math.round(fr.freshCorrect / fr.freshTotal * 100)}%). That is the most honest readiness signal here.`
+      : 'Every question in this exam was one you had seen before, so this score may run high.';
+    return `<div class="exam-freshness-box">
+      <div class="qz-config-label" style="margin-top:0;">Question freshness${e.coldRun ? ` · Cold Run #${e.run}` : ''}</div>
+      <div class="exposure-stat-grid">
+        ${exposureStat(e.fresh, 'never seen before')}
+        ${exposureStat(e.repeated, 'repeated questions')}
+        ${exposureStat(uniquePct + '%', 'unique in this exam')}
+        ${exposureStat(e.last3, 'from your last 3 Cold Runs')}
+        ${exposureStat(Math.round(s.pct * 100) + '%', 'of the bank explored')}
+        ${exposureStat(s.unseen, 'questions still unseen')}
+      </div>
+      <div class="qz-pool-info" style="margin-top:8px;">${freshLine}</div>
+    </div>`;
   }
 
   function renderExamResults(data){
@@ -18968,6 +19310,7 @@
         ${gaugeSVG({ pct: scorePct, size: 96, color: data.passed ? 'var(--good)' : 'var(--danger)', valueText: data.scaledScore, fontSize: 20, label: 'Scaled score' })}
         <div style="color:var(--muted); font-size:13px;">${data.correctCount} of ${data.total} questions correct (${Math.round(data.correctCount/data.total*100)}%)</div>
       </div>
+      ${renderFreshnessPanel(data.freshness)}
       <div class="exam-domain-breakdown">${domainRows}</div>
       <div class="qz-review-list">${reviewHtml}</div>
       <button id="exam-retry-btn" class="btn primary" style="margin-top:16px;">New Exam</button>
@@ -18982,6 +19325,7 @@
     document.getElementById('exam-runner').style.display = 'none';
     document.getElementById('exam-summary').style.display = 'none';
     renderExamDomainCoverage();
+    renderExposureDashboard();
   }
 
   /* ---------- Wire up events ---------- */
@@ -19197,6 +19541,18 @@
   document.getElementById('exam-use-weighting').addEventListener('change', updateExamPoolInfo);
   document.getElementById('exam-source-select').addEventListener('change', renderExamDomainCoverage);
   document.getElementById('exam-cert-select').addEventListener('change', renderExamDomainCoverage);
+  document.getElementById('exam-cert-select').addEventListener('change', syncExamExposureControls);
+  (function initExamExposureControls(){
+    const pol = document.getElementById('exam-policy-select');
+    const sup = document.getElementById('exam-include-supplemental');
+    try{ const v = localStorage.getItem(EXAM_POLICY_KEY); if(v && pol && pol.querySelector(`option[value="${v}"]`)) pol.value = v; }catch(e){}
+    try{ if(sup) sup.checked = localStorage.getItem(EXAM_SUPPLEMENTAL_KEY) === '1'; }catch(e){}
+    if(pol) pol.addEventListener('change', () => { lsSet(EXAM_POLICY_KEY, pol.value); renderExposureDashboard(); });
+    if(sup) sup.addEventListener('change', () => { lsSet(EXAM_SUPPLEMENTAL_KEY, sup.checked ? '1' : '0'); renderExamDomainCoverage(); renderExposureDashboard(); });
+    const det = document.getElementById('exam-exposure-details');
+    if(det) det.addEventListener('toggle', () => { if(det.open) renderExposureDashboard(); });
+    syncExamExposureControls();
+  })();
 
   document.getElementById('exam-untimed').addEventListener('change', (e) => {
     const timeInput = document.getElementById('exam-time-limit');
@@ -19247,8 +19603,9 @@
     document.getElementById('exam-time-limit').value = cert.examMinutes;
 
     examForceNoInstant = true; // a Cold Run never reveals answers until you submit
+    examStartingColdRun = true; // counts toward the "last 3 Cold Runs" repetition window
     try{ document.getElementById('exam-start-btn').click(); }
-    finally{ examForceNoInstant = false; }
+    finally{ examForceNoInstant = false; examStartingColdRun = false; }
   });
 
   document.getElementById('exam-allpbq-practice-btn').addEventListener('click', () => {
@@ -19336,7 +19693,6 @@
     const count = Math.max(1, Math.min(requestedCount, poolSize));
 
     const mcQuestions = selectReadyExamQuestions(count, useWeighting, source, certKey);
-    recordRecentExamQuestions(certKey, mcQuestions);
 
     let pbqQuestions = [];
     const includePBQ = document.getElementById('exam-include-pbq').checked;
@@ -19345,6 +19701,9 @@
       pbqQuestions = selectPBQs(pbqCount, certKey);
     }
     const questions = pbqQuestions.concat(mcQuestions);
+    // every question shown counts as seen, even if the attempt is abandoned
+    const exposureEntry = exposure.recordServed(certKey, mcQuestions.map(q => q.id).filter(Boolean),
+      pbqQuestions.map(q => q._pbqId).filter(Boolean), { coldRun: examStartingColdRun, policy: getExamPolicy() });
     /* Re-shuffle multiple-choice option order fresh for this attempt, so
        position can't be memorized across retakes. Scoring compares answer
        TEXT (q.answer), not position, so this is purely cosmetic/anti-pattern-
@@ -19370,7 +19729,9 @@
       finished: false,
       passingScore: cert.passingScore,
       certLabel: cert.label,
-      certKey: certKey
+      certKey: certKey,
+      exposureEntry: exposureEntry,
+      isColdRun: examStartingColdRun
     };
     startExamTimer();
     document.getElementById('exam-intro').style.display = 'none';
@@ -20810,7 +21171,8 @@
   const EXAM_DATE_KEY = 'cybersec_exam_date_v1';
   const BACKUP_KEYS = [
     STORAGE_KEY, TRACK_KEY, MISSED_QUEUE_KEY, PROGRESS_KEY, XP_KEY,
-    SOUND_KEY, FC_MASTERY_KEY, BADGE_SEEN_KEY, ACTIVITY_LOG_KEY, THEME_KEY, EXAM_DATE_KEY
+    SOUND_KEY, FC_MASTERY_KEY, BADGE_SEEN_KEY, ACTIVITY_LOG_KEY, THEME_KEY, EXAM_DATE_KEY,
+    EXPOSURE_STORAGE_KEY, EXAM_POLICY_KEY, EXAM_SUPPLEMENTAL_KEY
   ];
 
   function exportBackup(){
