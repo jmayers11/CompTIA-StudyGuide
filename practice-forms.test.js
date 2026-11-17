@@ -38,7 +38,7 @@ document.getElementById('exam-cert-select').value = 'security_plus';
 const windowObj = new Proxy({ localStorage, document, addEventListener(){}, removeEventListener(){}, setTimeout: (f) => 0, setInterval: () => 0, clearInterval(){}, clearTimeout(){},
   confirm: () => true, alert: () => {}, matchMedia: () => ({ matches: false, addEventListener(){}, addListener(){} }), requestAnimationFrame: () => 0, navigator: { serviceWorker: undefined, userAgent: 'node' }, location: { reload(){}, href: '', hash: '' }, innerWidth: 1200, innerHeight: 800 },
   { get(t, p){ if(p in t) return t[p]; if(p in globalThis) return globalThis[p]; return anything(); } });
-code = code.replace(/\}\)\(\);\s*$/, '  ;globalThis.__hooks = { exposure, getExamPolicy, renderExposureDashboard, cliTrainer, renderCliTab, renderCliCard, cliExpected, getCliSession: () => cliSession, gradeExamQuestion, instantiatePBQ, PBQ_BANK, renderExamQuestion, getExamState: () => examState, startLab, labSubmit, getLabRun: () => labRun, labEngine, showCliSection, CLI_LABS, renderReadiness, computeReadiness, PRACTICE_FORMS, buildPracticeFormExam, practiceFormStatus, renderPracticeFormPicker, EXPOSURE_GROUPS, EXPOSURE_SUPPLEMENTAL_SET, QUESTION_BANKS }; })();');
+code = code.replace(/\}\)\(\);\s*$/, '  ;globalThis.__hooks = { exposure, getExamPolicy, renderExposureDashboard, cliTrainer, renderCliTab, renderCliCard, cliExpected, getCliSession: () => cliSession, gradeExamQuestion, instantiatePBQ, PBQ_BANK, renderExamQuestion, getExamState: () => examState, startLab, labSubmit, getLabRun: () => labRun, labEngine, showCliSection, CLI_LABS, renderReadiness, computeReadiness, PRACTICE_FORMS, buildPracticeFormExam, practiceFormStatus, renderPracticeFormPicker, EXPOSURE_GROUPS, EXPOSURE_SUPPLEMENTAL_SET, QUESTION_BANKS, switchTab }; })();');
 globalThis.pdfjsLib = anything(); globalThis.JSZip = anything(); globalThis.sessionStorage = localStorage; globalThis.getComputedStyle = () => anything(); globalThis.HTMLElement = function(){}; globalThis.Element = function(){};
 const run = new Function('window','document','localStorage','navigator','location','confirm','alert','setTimeout','setInterval','clearInterval','clearTimeout','matchMedia','requestAnimationFrame','Event', code);
 class Ev { constructor(t){ this.type = t; } }
@@ -67,9 +67,14 @@ try{
   ok('each exam has a command-line PBQ (cli or terminal)', forms.every(f => f.pbq.some(id => ['cli', 'terminal'].includes(defs[id].type))));
   ok('the fresh mix draws from a bank that contains every practice exam', all.every(id => bankIds.has(id)));
 
-  // drive the real UI
+  // drive the real UI the way a user does: the saved track sets the cert with no change event, then Exam Mode opens
+  document.getElementById('exam-form-row').style.display = 'none';
   document.getElementById('exam-cert-select').value = 'security_plus';
-  H.renderPracticeFormPicker();
+  H.switchTab('exam');
+  ok('opening Exam Mode on Security+ shows the Cold Run exam picker', document.getElementById('exam-form-row').style.display === '');
+  document.getElementById('exam-cert-select').value = 'network_plus'; H.switchTab('exam');
+  ok('picker is hidden for certs without practice exams', document.getElementById('exam-form-row').style.display === 'none');
+  document.getElementById('exam-cert-select').value = 'security_plus'; H.switchTab('exam');
   const opts0 = document.getElementById('exam-coldrun-form').innerHTML;
   ok('picker lists Fresh + Practice Exams 1-10', /Fresh exam/.test(opts0) && (opts0.match(/Practice Exam \d+: not taken/g) || []).length === 10);
   const take = (formVal, answerAll) => {

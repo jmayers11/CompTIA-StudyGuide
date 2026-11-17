@@ -224,7 +224,8 @@ The keyword heuristic undercounts this bank's scenarios. It only recognizes part
   - 62 pool questions are in no practice exam and appear only in Fresh exams.
   - Three new drafts were dropped as too close to existing questions.
 - **Builder:** the exam lists are generated offline by a builder script and stored as question IDs in a `PRACTICE_FORMS` data block in `index.html`.
-- **Tests:** `tests/practice-forms.test.js` (new, 21 checks) checks the blueprint split, no overlap, valid IDs, no near-duplicates and the PBQ mix. Then it takes Practice Exam 3 twice, a Fresh exam and Practice Exam 4 through the real buttons. Full regression: 26 + 28 + 14 + 20 + 16 + 21, all passing.
+- **Tests:** `tests/practice-forms.test.js` (new, 23 checks) checks the blueprint split, no overlap, valid IDs, no near-duplicates and the PBQ mix. Then it takes Practice Exam 3 twice, a Fresh exam and Practice Exam 4 through the real buttons. Full regression: 26 + 28 + 14 + 20 + 16 + 23, all passing.
+- **Fix:** the Cold Run exam menu was hidden when the app loaded with the Security+ track saved, because the track set the certification without a change event. Opening Exam Mode now refreshes the menu, and a test checks this.
 
 ### Notes
 - Practice scores are not an official CompTIA prediction. CompTIA's scaled scoring is proprietary.

@@ -18938,6 +18938,7 @@
     }else if(tab === 'exam'){
       document.getElementById('exam-panel').style.display = 'block';
       renderExamDomainCoverage();
+      try{ syncExamExposureControls(); }catch(e){} // the cert can change without a change event (track restore), so re-sync the Cold Run exam picker here
     }else if(tab === 'flashcards'){
       document.getElementById('flashcards-panel').style.display = 'block';
       renderFlashcardsTab();
