@@ -3826,6 +3826,10 @@
   body.m-shell #sidebar-header > h1, body.m-shell #sidebar-header > .sub{ order:-3; }
   body.m-shell #tab-bar{ order:-2; margin:10px 0 14px; }
   body.m-shell #exam-runner:not(.exam-last) #exam-nav-buttons #exam-review-btn{ display:none !important; }
+  .quiz-option-btn.selected, .daily-challenge-opt.selected{ border-color:var(--accent) !important; background:rgba(var(--accent-rgb),0.12) !important; box-shadow:0 0 0 1px var(--accent); }
+  #quiz-submit-btn{ display:block; width:100%; margin-top:14px; min-height:var(--tap); border-radius:999px; font-size:15px; text-transform:none; letter-spacing:0; }
+  #quiz-submit-btn:disabled, #exam-check-btn:disabled, .daily-challenge-submit:disabled{ opacity:.45; cursor:not-allowed; }
+  .daily-challenge-submit{ margin-top:10px; width:100%; min-height:var(--tap); border-radius:999px; text-transform:none; letter-spacing:0; }
   .exam-grid-review-row{ display:flex; justify-content:flex-end; margin:0 10px 12px; }
   .exam-grid-review-row .btn{ min-height:44px; border-radius:999px; text-transform:none; letter-spacing:0; }
   body.m-shell #m-tabctx:empty{ display:none; }
@@ -4228,6 +4232,7 @@
         <div class="quiz-question-card">
           <div id="quiz-question-text"></div>
           <div id="quiz-options"></div>
+          <button id="quiz-submit-btn" class="btn primary" type="button" disabled>Submit Answer</button>
           <div id="quiz-feedback" class="answer-feedback" style="display:none;" aria-live="polite"></div>
           <button id="quiz-next-btn" class="btn primary">Next Question</button>
         </div>
@@ -4348,7 +4353,7 @@
           <div id="exam-feedback" class="answer-feedback" style="display:none;" aria-live="polite"></div>
           <div id="exam-nav-buttons">
             <button id="exam-back-btn" class="btn" title="Go back to the previous question">← Previous</button>
-            <button id="exam-check-btn" class="btn primary" type="button" style="display:none;">✔ Check Answer</button>
+            <button id="exam-check-btn" class="btn primary" type="button" style="display:none;">Submit Answer</button>
             <button id="exam-next-btn" class="btn primary">Next Question</button>
             <button id="exam-review-btn" class="btn" type="button">Review &amp; Submit</button>
             <button id="exam-submit-btn" class="btn danger" style="display:none;">Submit Exam</button>
@@ -19030,7 +19035,9 @@
       if(remaining <= 0){
         stopQuizTimer();
         timerEl.textContent = "⏱ TIME'S UP";
-        selectQuizAnswer('__TIMEOUT__', null);
+        // a selected-but-unsubmitted answer still counts when time runs out
+        if(quizState.pending) selectQuizAnswer(quizState.pending.opt, quizState.pending.btn);
+        else selectQuizAnswer('__TIMEOUT__', null);
         return;
       }
       paint();
@@ -19048,13 +19055,24 @@
     const optsWrap = document.getElementById('quiz-options');
     optsWrap.innerHTML = '';
     quizState.answered = false;
+    quizState.pending = null;
+    const submitBtn = document.getElementById('quiz-submit-btn');
     q.options.forEach(opt => {
       const btn = document.createElement('button');
+      btn.type = 'button';
       btn.className = 'quiz-option-btn';
       btn.textContent = opt;
-      btn.addEventListener('click', () => selectQuizAnswer(opt, btn));
+      btn.setAttribute('aria-pressed', 'false');
+      // first tap only selects; Submit Answer grades it, so a mis-tap can be corrected
+      btn.addEventListener('click', () => {
+        if(quizState.answered) return;
+        quizState.pending = { opt, btn };
+        optsWrap.querySelectorAll('.quiz-option-btn').forEach(b => { const on = b === btn; b.classList.toggle('selected', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+        if(submitBtn) submitBtn.disabled = false;
+      });
       optsWrap.appendChild(btn);
     });
+    if(submitBtn){ submitBtn.style.display = 'inline-block'; submitBtn.disabled = true; }
     document.getElementById('quiz-next-btn').style.display = 'none';
     const quizFb = document.getElementById('quiz-feedback');
     quizFb.style.display = 'none';
@@ -19066,6 +19084,7 @@
     if(quizState.answered) return;
     stopQuizTimer();
     quizState.answered = true;
+    const qsb = document.getElementById('quiz-submit-btn'); if(qsb) qsb.style.display = 'none';
     const q = quizState.questions[quizState.currentIndex];
     const correct = opt === q.answer;
     if(correct){
@@ -20142,10 +20161,10 @@
       renderPBQTerminal(q, optsWrap);
     }else{
       const needed = q.answer.length;
-      needsCheckBtn = needed > 1;
+      needsCheckBtn = true;
       hintEl.textContent = needed > 1
-        ? `Select ${needed} answers${instant ? ', then click "Check Answer".' : '.'}`
-        : (instant ? 'Select one answer — you\'ll see right away whether it\'s correct.' : 'Select one answer.');
+        ? `Select ${needed} answers${instant ? ', then tap Submit Answer.' : '.'}`
+        : (instant ? 'Select one answer, then tap Submit Answer. You can change it until you submit.' : 'Select one answer.');
       const currentSelection = examState.selections[examState.currentIndex] || [];
       (q._displayOptions || q.options).forEach((opt, oi) => {
         const btn = document.createElement('button');
@@ -20176,7 +20195,12 @@
       fbEl.style.display = 'none';
       fbEl.innerHTML = '';
     }
-    document.getElementById('exam-check-btn').style.display = (instant && !checkedGrade && needsCheckBtn) ? 'inline-block' : 'none';
+    const checkBtn = document.getElementById('exam-check-btn');
+    const pendingSubmit = instant && !checkedGrade && needsCheckBtn;
+    checkBtn.style.display = pendingSubmit ? 'inline-block' : 'none';
+    checkBtn.disabled = pendingSubmit && !isQuestionAnswered(q, examState.selections[examState.currentIndex]);
+    // while an answer is waiting to be submitted, Submit is the main action and Next is secondary
+    document.getElementById('exam-next-btn').classList.toggle('primary', !pendingSubmit);
 
     document.getElementById('exam-back-btn').style.display = examState.currentIndex === 0 ? 'none' : 'inline-block';
     const isLast = examState.currentIndex === total - 1;
@@ -20269,10 +20293,8 @@
       if(sel.length > needed) sel.shift();
     }
     examState.selections[idx] = sel;
-    if(examState.instant && needed === 1 && sel.length === 1){
-      checkCurrentExamQuestion();
-      return;
-    }
+    // Instant feedback no longer grades on the first tap: the learner selects (and can change)
+    // an answer, then presses Submit Answer.
     renderExamQuestion();
   }
 
@@ -21355,6 +21377,9 @@
     showQuizRunner();
   });
 
+  document.getElementById('quiz-submit-btn').addEventListener('click', () => {
+    if(quizState && !quizState.answered && quizState.pending) selectQuizAnswer(quizState.pending.opt, quizState.pending.btn);
+  });
   document.getElementById('quiz-next-btn').addEventListener('click', () => {
     if(quizState.currentIndex < quizState.questions.length - 1){
       quizState.currentIndex++;
@@ -22199,6 +22224,7 @@
     };
     persistDailyChallengeState();
   }
+  let dailyChallengePending = null;
   function renderDailyChallenge(){
     const el = document.getElementById('home-daily-challenge');
     if(!el) return;
@@ -22213,7 +22239,8 @@
       let cls = 'daily-challenge-opt';
       if(answered && isCorrectOpt) cls += ' correct';
       else if(answered && isPicked && !isCorrectOpt) cls += ' incorrect';
-      return `<button class="${cls}" data-opt="${escapeHtml(opt)}" ${answered ? 'disabled' : ''}>${escapeHtml(opt)}</button>`;
+      if(!answered && dailyChallengePending === opt) cls += ' selected';
+      return `<button type="button" class="${cls}" data-opt="${escapeHtml(opt)}" aria-pressed="${!answered && dailyChallengePending === opt ? 'true' : 'false'}" ${answered ? 'disabled' : ''}>${escapeHtml(opt)}</button>`;
     }).join('');
     el.innerHTML = `
       <div class="daily-challenge-card">
@@ -22223,13 +22250,16 @@
         </div>
         <div class="daily-challenge-question">${escapeHtml(q.question)}</div>
         <div class="daily-challenge-opts">${optsHtml}</div>
+        ${answered ? '' : `<button type="button" class="btn primary daily-challenge-submit" id="daily-challenge-submit" ${dailyChallengePending === null ? 'disabled' : ''}>Submit Answer</button>`}
         ${answered ? `<div class="qz-pool-info" style="margin-top:10px;">${dailyChallengeState.correct ? '✅ Correct! +5 XP · come back tomorrow for a new one.' : '❌ Not quite — the correct answer is highlighted above. Come back tomorrow for a new one.'}</div>` : ''}
       </div>
     `;
     if(!answered){
       el.querySelectorAll('.daily-challenge-opt').forEach(btn => {
-        btn.addEventListener('click', () => selectDailyChallengeAnswer(btn.getAttribute('data-opt'), q));
+        btn.addEventListener('click', () => { dailyChallengePending = btn.getAttribute('data-opt'); renderDailyChallenge(); });
       });
+      const sub = document.getElementById('daily-challenge-submit');
+      if(sub) sub.addEventListener('click', () => { if(dailyChallengePending !== null){ const o = dailyChallengePending; dailyChallengePending = null; selectDailyChallengeAnswer(o, q); } });
     }
   }
   function selectDailyChallengeAnswer(opt, q){

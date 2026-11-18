@@ -300,6 +300,13 @@ The five-mode CLI trainer is replaced by plain two-sided flashcards (CLI Mastery
 - **Unchanged:** all questions, answers, explanations, scoring, Cold Run selection, practice exams, PBQ grading and stored progress. No new dependencies.
 - **Tests:** the app-integration test (17 checks, 1 new) checks the redesigned exam screen. Full regression: 17 + 14 + 28 + 48 + 26 + 18 + 23 + 22, all passing. Phone layout was checked in a 390 px browser viewport against the live page with the new CSS and markup applied.
 
+### Submit Answer for instant feedback
+- In Exam Mode with instant feedback, in Quizzes and in the Daily Challenge, tapping an option now only **selects** it. Tap another option to change your mind. Nothing is graded until you press **Submit Answer**, which prevents mis-taps on phones.
+- In Exam Mode, Submit Answer stays disabled until something is selected. While an answer is waiting to be submitted, Submit is the highlighted button and Next is secondary. After you submit, the question locks and shows the feedback.
+- In timed quizzes, a selected but unsubmitted answer still counts if time runs out.
+- Cold Runs and other exams without instant feedback are unchanged: answers are graded only when you submit the exam.
+- **Tests:** `tests/instant-submit.test.js` (new, 14 checks). Full regression: all 9 test files pass.
+
 ### Notes
 - Practice scores are not an official CompTIA prediction. CompTIA's scaled scoring is proprietary.
 - Third-party practice exams (for example, Professor Messer's) are kept out of this app on purpose, so they stay independent readiness checks.
