@@ -274,6 +274,32 @@ The five-mode CLI trainer is replaced by plain two-sided flashcards (CLI Mastery
 
   `tests/app-integration.test.js` now drives the flip cards and Type the Command through the real UI. Full regression: 16 + 14 + 28 + 48 + 26 + 18 + 23 + 22, all passing.
 
+### UI modernization, increment 1 (mobile shell + exam screen)
+- **Audit:** done on the live site at iPhone width (390 × 844). The main problems were:
+  - The sidebar filled the first ~520 px of every phone screen, so content started below the fold.
+  - The 90-button question grid sat above every exam question.
+  - The exam's Previous / Flag / Next / Review row ran past the screen edge (414 px on a 390 px screen).
+  - Every form control used 13 px text, which makes iPhone Safari zoom in on focus.
+  - Quiz tag filters overflowed to 842 px.
+  - The mascot speech bubbles covered question text.
+  - The page had a duplicate `exam-nav-buttons` id.
+  - Single-answer options showed square checkboxes.
+- **Mobile shell (≤ 860 px):**
+  - A compact sticky top bar (☰ menu, section name, track) replaces the stacked sidebar.
+  - The sidebar becomes a slide-in menu with the tab list first; it closes on navigation, on the backdrop, or with Esc.
+  - Tab-specific sidebar controls (notes list, planner form, cram options) move with their listeners into a box at the top of the page while that tab is open. Desktop is unchanged.
+- **Exam screen (all sizes):**
+  - The header holds ←, the exam title (for example "Security+ · Practice Exam 3"), a compact timer and a Flag button.
+  - Progress shows "Question N of M" and a flagged count.
+  - The question grid is now a collapsible **Question navigator** showing the answered count. It is collapsed on phones and open on desktop, and it holds a Review & Submit button.
+  - Options are larger lettered cards (A–D). Round marks mean single answer, square marks mean multi-answer, and `role=radio/checkbox` with `aria-checked` is set.
+  - Previous / Next are pill buttons.
+  - On phones the header and the Previous/Next bar are sticky, mascots are hidden during the exam, and Review & Submit sits on the last question and in the navigator.
+  - Simulation PBQs no longer print the scenario twice.
+- **Forms and overflow:** on phones, inputs and selects use 16 px text with 44 px minimum height, checkboxes are 20 px, tag chips wrap, and terminal output and tables scroll inside their own box.
+- **Unchanged:** all questions, answers, explanations, scoring, Cold Run selection, practice exams, PBQ grading and stored progress. No new dependencies.
+- **Tests:** the app-integration test (17 checks, 1 new) checks the redesigned exam screen. Full regression: 17 + 14 + 28 + 48 + 26 + 18 + 23 + 22, all passing. Phone layout was checked in a 390 px browser viewport against the live page with the new CSS and markup applied.
+
 ### Notes
 - Practice scores are not an official CompTIA prediction. CompTIA's scaled scoring is proprietary.
 - Third-party practice exams (for example, Professor Messer's) are kept out of this app on purpose, so they stay independent readiness checks.

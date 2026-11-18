@@ -53,6 +53,17 @@ function fresh(){ const t = document.getElementById('exam-summary').innerHTML.re
 try{
   for(let r = 1; r <= 3; r++){
     document.getElementById('exam-coldrun-btn').click();
+    if(r === 1){ // redesigned question screen
+      const es0 = globalThis.__hooks.getExamState(); const mi = es0.questions.findIndex(q => !q.type && q.options);
+      const made = []; const ce = document.createElement; document.createElement = tag => { const el = ce(tag); made.push(el); return el; };
+      es0.currentIndex = mi; globalThis.__hooks.renderExamQuestion();
+      document.createElement = ce;
+      const oh = made.filter(e => e.className && String(e.className).includes('exam-option-btn')).map(e => e.innerHTML + ' role=' + (e._role || '')).join(' ');
+      globalThis.__ui = { title: document.getElementById('exam-topbar-title').textContent, timer: document.getElementById('exam-timer').textContent,
+        radio: /role="radio"/.test(oh) || /class="opt-letter">A\./.test(oh), letters: /opt-letter">A\./.test(oh) && /opt-letter">B\./.test(oh), flag: document.getElementById('exam-flag-btn').textContent,
+        sum: document.getElementById('exam-qgrid-sum').textContent, active: true };
+      es0.currentIndex = 0; globalThis.__hooks.renderExamQuestion();
+    }
     const prog = document.getElementById('exam-progress-text').textContent;
     document.getElementById('exam-submit-btn').click();
     const f = fresh(); results.push({ prog, f, r });
@@ -170,6 +181,7 @@ const checks = [
   ['exam results label the 100-900 score as an unofficial estimate next to the official 750', globalThis.__ready && globalThis.__ready.labeled],
   ['exam attempts store Cold Run, fresh/repeat and PBQ counts', globalThis.__ready && globalThis.__ready.attempts.length === 3 && globalThis.__ready.attempts.every(a => a.coldRun === true && a.freshTotal === 86 && a.freshTotal + a.repeatTotal + a.pbqTotal === 90 && a.pbqTotal === 4 && typeof a.weightedPct === 'number')],
   ['readiness tab renders disclaimer, confidence from 258 fresh questions, trend and domains', globalThis.__ready && /Unofficial practice estimate/.test(globalThis.__ready.rd) && /across 258 fresh questions/.test(globalThis.__ready.rd) && /official passing score \(CompTIA\)/.test(globalThis.__ready.rd) && /Cold Run trend/.test(globalThis.__ready.rd) && /5\.0 Security Program Management/.test(globalThis.__ready.rd) && /commands mastered \(flashcards\)/.test(globalThis.__ready.rd)],
+  ['redesigned exam screen: title, compact timer, lettered options, Flag button, navigator summary', globalThis.__ui && /Security\+ · Cold Run/.test(globalThis.__ui.title) && /^⏱ \d+:\d\d$/.test(globalThis.__ui.timer) && globalThis.__ui.letters && globalThis.__ui.flag === 'Flag' && /^\d+\/90 answered$/.test(globalThis.__ui.sum)],
   ['exposure persists across an app restart', /3 Cold Runs taken/.test(out.join(' ')) && /after restart: .*you've seen \d+ of \d+/.test(out.join(' ')) && /unchanged by restart/.test(out.join(' '))]
 ];
 let failed = 0; checks.forEach(([n, ok]) => { if(!ok){ failed++; console.log('  FAIL ' + n); } });

@@ -3761,6 +3761,94 @@
   .lab-note{ color:#9fb0c9; font-size:12px; margin:0 0 10px; white-space:normal; }
   .lab-answer-line{ color:#e8ecf5; margin:4px 0 10px; }
   .lab-done{ margin-top:12px; }
+
+  /* ===== UI modernization, increment 1 (2026-11-18): exam screen + mobile shell ===== */
+  :root{ --tap:48px; --radius-lg:16px; --radius-md:12px; }
+  :focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  /* --- Exam screen --- */
+  .exam-topbar{ display:flex; align-items:center; gap:10px; padding:10px 12px; margin:0 0 12px; background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-lg); }
+  .exam-topbar #exam-exit-btn{ flex:0 0 auto; width:40px; height:40px; padding:0; border-radius:12px; font-size:20px; line-height:1; display:inline-flex; align-items:center; justify-content:center; margin:0; text-transform:none; }
+  .exam-topbar-title{ flex:1 1 auto; min-width:0; font-weight:700; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .exam-topbar #exam-timer{ flex:0 0 auto; margin:0; padding:7px 12px; border:1px solid var(--border); border-radius:999px; font-size:14px; background:var(--panel2); text-align:center; }
+  .exam-topbar #exam-flag-btn{ flex:0 0 auto; margin:0; padding:8px 14px; min-height:40px; border-radius:999px; font-size:13px; text-transform:none; letter-spacing:0; }
+  .exam-topbar #exam-flag-btn.primary{ background:rgba(var(--warn-rgb),0.18); color:var(--warn); border-color:var(--warn); }
+  .exam-progress-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13px; color:var(--muted); margin:0 2px 6px; }
+  #exam-runner .quiz-progress-wrap{ margin-bottom:10px; }
+  #exam-runner #exam-progress-text{ font-size:13px; color:var(--muted); font-weight:600; }
+  .exam-qgrid-details{ margin:0 0 12px; border:1px solid var(--border); border-radius:var(--radius-md); background:var(--panel); }
+  .exam-qgrid-details > summary{ list-style:none; cursor:pointer; padding:12px 14px; font-size:14px; font-weight:600; display:flex; justify-content:space-between; gap:10px; min-height:var(--tap); align-items:center; }
+  .exam-qgrid-details > summary::-webkit-details-marker{ display:none; }
+  .exam-qgrid-details > summary::after{ content:'▾'; color:var(--muted); }
+  .exam-qgrid-details[open] > summary::after{ content:'▴'; }
+  .exam-qgrid-details .exam-qgrid{ margin:0 10px 10px; }
+  #exam-qgrid-sum{ color:var(--muted); font-weight:500; font-size:12.5px; margin-left:auto; }
+  #exam-runner .quiz-question-card{ border-radius:var(--radius-lg); padding:20px 18px; }
+  #exam-runner .quiz-question-card::before, #exam-runner .quiz-question-card::after{ display:none; }
+  #exam-runner #exam-question-text{ font-size:19px; line-height:1.5; margin-bottom:10px; }
+  #exam-runner .exam-option-btn{ clip-path:none; border-radius:var(--radius-md); min-height:56px; padding:14px 16px; font-size:16px; line-height:1.4; gap:14px; }
+  #exam-runner .exam-option-btn .opt-letter{ flex:0 0 auto; width:22px; color:var(--muted); font-weight:700; }
+  #exam-runner .exam-option-btn .opt-text{ flex:1 1 auto; min-width:0; overflow-wrap:anywhere; }
+  #exam-runner .exam-option-btn .opt-mark{ order:3; width:22px; height:22px; border-radius:50%; border:2px solid var(--muted); background:transparent; }
+  #exam-runner .exam-option-btn.multi .opt-mark{ border-radius:6px; }
+  #exam-runner .exam-option-btn.selected .opt-mark{ border-color:var(--accent); background:radial-gradient(circle, var(--accent) 0 45%, transparent 50%); }
+  #exam-runner .exam-option-btn.multi.selected .opt-mark{ background:var(--accent); box-shadow:inset 0 0 0 3px var(--panel2); }
+  #exam-runner .exam-option-btn.selected{ border-color:var(--accent); background:rgba(var(--accent-rgb),0.10); }
+  #exam-runner #exam-nav-buttons{ display:flex; gap:10px; margin-top:20px; align-items:stretch; }
+  #exam-runner #exam-nav-buttons .btn{ flex:1 1 0; min-width:0; min-height:var(--tap); border-radius:999px; font-size:15px; text-transform:none; letter-spacing:0; padding:10px 14px; white-space:normal; }
+  #exam-runner #exam-nav-buttons #exam-back-btn{ flex:0 1 34%; margin:0; }
+  #exam-review-nav{ display:flex; justify-content:space-between; gap:10px; margin-top:16px; }
+  #exam-review-nav .btn{ min-height:var(--tap); }
+
+  /* --- Form controls: 16px+ text stops iPhone Safari from zooming on focus --- */
+  @media (max-width: 860px){
+    input[type="text"], input[type="number"], input[type="search"], input[type="date"], input[type="time"], input[type="email"], input:not([type]), select, textarea{ font-size:16px !important; }
+    select, input[type="text"], input[type="number"], input[type="date"], input[type="time"], input:not([type]){ min-height:44px; }
+    input[type="checkbox"], input[type="radio"]{ width:20px; height:20px; flex:0 0 auto; }
+    .qz-checkbox-row{ min-height:44px; align-items:center; }
+    .tag-chip{ white-space:normal; overflow-wrap:anywhere; max-width:100%; }
+    #quiz-tag-filters, #quiz-notes-source-wrap, .cram-term-grid{ min-width:0; white-space:normal; }
+    pre, .cli-term-out, .pbq-exhibit pre{ max-width:100%; overflow-x:auto; }
+    .exposure-table-wrap{ max-width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+
+  /* --- Mobile app shell: compact top bar + slide-in menu instead of a 500px sidebar --- */
+  #m-topbar, #m-backdrop{ display:none; }
+  body.m-shell #m-topbar{ display:flex; align-items:center; gap:10px; position:sticky; top:0; z-index:900; padding:10px 12px; padding-top:max(10px, env(safe-area-inset-top)); background:var(--panel); border-bottom:1px solid var(--border); }
+  body.m-shell #m-menu-btn{ width:44px; height:44px; border-radius:12px; border:1px solid var(--border); background:var(--panel2); color:var(--text); font-size:20px; cursor:pointer; }
+  body.m-shell #m-title{ flex:1 1 auto; min-width:0; font-weight:700; font-size:17px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  body.m-shell #m-track{ flex:0 0 auto; font-size:12px; color:var(--accent); border:1px solid var(--border); border-radius:999px; padding:5px 10px; max-width:42vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  body.m-shell #sidebar{ position:fixed; top:0; left:0; bottom:0; width:min(86vw, 340px); max-width:none; height:100%; max-height:none; z-index:1000; transform:translateX(-105%); transition:transform .2s ease; overflow-y:auto; -webkit-overflow-scrolling:touch; border-right:1px solid var(--border); border-bottom:none; box-shadow:var(--shadow-lg); padding-bottom:max(16px, env(safe-area-inset-bottom)); }
+  body.m-shell.m-drawer-open #sidebar{ transform:none; }
+  body.m-shell.m-drawer-open #m-backdrop{ display:block; position:fixed; inset:0; z-index:999; background:rgba(0,0,0,0.5); }
+  body.m-shell #main{ padding:14px 12px calc(24px + env(safe-area-inset-bottom)); }
+  body.m-shell #sidebar-header{ display:flex; flex-direction:column; }
+  body.m-shell #sidebar-header > h1, body.m-shell #sidebar-header > .sub{ order:-3; }
+  body.m-shell #tab-bar{ order:-2; margin:10px 0 14px; }
+  body.m-shell #exam-runner:not(.exam-last) #exam-nav-buttons #exam-review-btn{ display:none !important; }
+  .exam-grid-review-row{ display:flex; justify-content:flex-end; margin:0 10px 12px; }
+  .exam-grid-review-row .btn{ min-height:44px; border-radius:999px; text-transform:none; letter-spacing:0; }
+  body.m-shell #m-tabctx:empty{ display:none; }
+  body.m-shell #m-tabctx{ margin:0 0 14px; padding:12px; border:1px solid var(--border); border-radius:var(--radius-md); background:var(--panel); }
+  body.m-shell #m-tabctx > div{ margin:0 !important; }
+  @media (prefers-reduced-motion: reduce){ body.m-shell #sidebar{ transition:none; } }
+
+  /* During an exam on a phone: full-height question screen, sticky header and controls, no mascots */
+  body.m-shell.exam-active #m-topbar{ display:none; }
+  body.m-shell.exam-active #bot-mascot, body.m-shell.exam-active #bot-bubble,
+  body.m-shell.exam-active #sgt-mascot, body.m-shell.exam-active #sgt-bubble,
+  body.m-shell.exam-active #focus-mode-btn{ display:none !important; }
+  body.m-shell.exam-active #main{ padding-top:8px; }
+  body.m-shell #exam-runner .exam-topbar{ position:sticky; top:max(6px, env(safe-area-inset-top)); z-index:50; box-shadow:var(--shadow-sm); }
+  body.m-shell #exam-runner .quiz-question-card{ padding:18px 14px 0; }
+  body.m-shell #exam-runner #exam-nav-buttons{ position:sticky; bottom:0; z-index:40; margin:18px -14px 0; padding:12px 14px calc(12px + env(safe-area-inset-bottom)); background:var(--panel); border-top:1px solid var(--border); border-radius:0 0 var(--radius-lg) var(--radius-lg); }
+  @media (max-width: 400px){
+    .exam-topbar{ gap:8px; padding:8px 10px; }
+    .exam-topbar-title{ font-size:15px; }
+    .exam-topbar #exam-timer{ padding:6px 10px; font-size:13px; }
+    .exam-topbar #exam-flag-btn{ padding:8px 11px; }
+    #exam-runner #exam-question-text{ font-size:18px; }
+  }
 </style>
 </head>
 <body>
@@ -3818,6 +3906,8 @@
   </div>
 </div>
 
+<header id="m-topbar" role="banner"><button type="button" id="m-menu-btn" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar">☰</button><div id="m-title">Home</div><div id="m-track"></div></header>
+<div id="m-backdrop" aria-hidden="true"></div>
 <div id="sidebar">
   <div id="sidebar-header">
     <h1>🔐 CYBERSEC-OS</h1>
@@ -3959,6 +4049,7 @@
 
 <div id="main">
   <div id="main-inner">
+    <div id="m-tabctx"></div>
     <div id="home-panel" style="display:none;">
       <div id="home-greeting"></div>
       <div id="home-countdown"></div>
@@ -4238,13 +4329,17 @@
       </div>
 
       <div id="exam-runner" style="display:none;">
-        <button id="exam-exit-btn" class="btn" type="button" style="margin-bottom:12px; font-size:12px; padding:6px 12px;" title="Leave this exam and go back to the exam setup screen">← Back to exam setup</button>
+        <div class="exam-topbar">
+          <button id="exam-exit-btn" class="btn" type="button" title="Leave this exam and go back to the exam setup screen" aria-label="Back to exam setup">←</button>
+          <div class="exam-topbar-title" id="exam-topbar-title">Exam Mode</div>
+          <div id="exam-timer" role="timer" aria-live="off"></div>
+          <button id="exam-flag-btn" class="btn" type="button" aria-pressed="false">Flag</button>
+        </div>
         <div class="quiz-progress-wrap">
-          <div id="exam-progress-text"></div>
+          <div class="exam-progress-row"><div id="exam-progress-text"></div><div id="exam-progress-tag"></div></div>
           <div class="quiz-progress-bar"><div id="exam-progress-bar-fill"></div></div>
         </div>
-        <div id="exam-timer"></div>
-        <div id="exam-qgrid" class="exam-qgrid"></div>
+        <details id="exam-qgrid-wrap" class="exam-qgrid-details"><summary>Question navigator <span id="exam-qgrid-sum"></span></summary><div id="exam-qgrid" class="exam-qgrid"></div><div class="exam-grid-review-row"><button type="button" class="btn" id="exam-grid-review-btn">Review &amp; Submit</button></div></details>
         <div class="quiz-question-card">
           <div id="exam-domain-badge"></div>
           <div id="exam-question-text"></div>
@@ -4253,10 +4348,9 @@
           <div id="exam-feedback" class="answer-feedback" style="display:none;" aria-live="polite"></div>
           <div id="exam-nav-buttons">
             <button id="exam-back-btn" class="btn" title="Go back to the previous question">← Previous</button>
-            <button id="exam-flag-btn" class="btn" type="button">🚩 Flag for Review</button>
             <button id="exam-check-btn" class="btn primary" type="button" style="display:none;">✔ Check Answer</button>
             <button id="exam-next-btn" class="btn primary">Next Question</button>
-            <button id="exam-review-btn" class="btn primary" type="button">📋 Review &amp; Submit</button>
+            <button id="exam-review-btn" class="btn" type="button">Review &amp; Submit</button>
             <button id="exam-submit-btn" class="btn danger" style="display:none;">Submit Exam</button>
           </div>
         </div>
@@ -4267,7 +4361,7 @@
           <h3 style="margin-top:0;">📋 Review Before Submitting</h3>
           <div id="exam-review-stats" style="margin-bottom:12px; color:var(--muted); font-size:13px;"></div>
           <div id="exam-review-grid" class="exam-qgrid"></div>
-          <div id="exam-nav-buttons" style="margin-top:16px;">
+          <div id="exam-review-nav" class="exam-review-nav">
             <button id="exam-review-back-btn" class="btn">◀ Back to Exam</button>
             <button id="exam-review-confirm-btn" class="btn danger">✅ Submit Final Answers</button>
           </div>
@@ -19083,8 +19177,58 @@
 
   /* ---------- Tabs ---------- */
 
+  /* MOBILE_SHELL_START */
+  /* Phones and small tablets (<= 860px): the sidebar becomes a slide-in menu behind a compact
+     top bar, so content starts at the top of the screen. A tab's own sidebar controls (the notes
+     list, the planner form, cram options) are moved, with their listeners intact, into a box at
+     the top of the main area while that tab is open, and moved back on wider screens. */
+  const M_TAB_NAMES = { home: 'Home', notes: 'Notes', flashcards: 'Flashcards', climastery: 'CLI Mastery', planner: 'Study Planner',
+    quizzes: 'Quizzes', exam: 'Exam Mode', reconops: 'Recon Ops', jobsim: 'Job Sim', careerprep: 'Career Prep', cram: 'Cram Sheet',
+    dashboard: 'Dashboard', readiness: 'Readiness' };
+  const M_MOVE_SECTIONS = { notes: 'notes-tab', planner: 'planner-tab', cram: 'cram-tab' };
+  const mShellMQ = (typeof window !== 'undefined' && window.matchMedia) ? window.matchMedia('(max-width: 860px)') : null;
+  let mMoved = null; // { el, marker }
+  function mIsShell(){ return !!(mShellMQ && mShellMQ.matches); }
+  function mSetDrawer(open){
+    document.body.classList.toggle('m-drawer-open', !!open);
+    const b = document.getElementById('m-menu-btn');
+    if(b){ b.setAttribute('aria-expanded', open ? 'true' : 'false'); b.textContent = open ? '✕' : '☰'; b.setAttribute('aria-label', open ? 'Close menu' : 'Open menu'); }
+  }
+  function mRestoreMoved(){
+    if(mMoved && mMoved.marker.parentNode){ mMoved.marker.parentNode.insertBefore(mMoved.el, mMoved.marker); mMoved.marker.remove(); }
+    mMoved = null;
+  }
+  function mobileShellAfterSwitch(tab){
+    const shell = mIsShell();
+    document.body.classList.toggle('m-shell', shell);
+    const title = document.getElementById('m-title');
+    if(title) title.textContent = M_TAB_NAMES[tab] || 'CyberSec Study';
+    const tr = document.getElementById('m-track'), badge = document.getElementById('active-track-badge');
+    if(tr) tr.textContent = badge ? badge.textContent.replace(/\s*track$/i, '') : '';
+    if(tab !== 'exam') document.body.classList.remove('exam-active');
+    mRestoreMoved();
+    if(shell){
+      mSetDrawer(false);
+      const id = M_MOVE_SECTIONS[tab], el = id && document.getElementById(id), box = document.getElementById('m-tabctx');
+      if(el && box){ const marker = document.createComment('m-shell:' + id); el.parentNode.insertBefore(marker, el); box.appendChild(el); mMoved = { el, marker }; }
+    }
+  }
+  (function initMobileShell(){
+    const btn = document.getElementById('m-menu-btn'), bd = document.getElementById('m-backdrop');
+    if(btn) btn.addEventListener('click', () => mSetDrawer(!document.body.classList.contains('m-drawer-open')));
+    if(bd) bd.addEventListener('click', () => mSetDrawer(false));
+    const sb = document.getElementById('sidebar');
+    // any navigation from the menu closes it
+    if(sb) sb.addEventListener('click', e => { const t = e.target && e.target.closest ? e.target.closest('.tab-btn, #switch-track-btn, #cram-sheet-btn, #replay-tour-btn') : null; if(t && mIsShell()) setTimeout(() => mSetDrawer(false), 0); });
+    document.addEventListener('keydown', e => { if(e.key === 'Escape' && document.body.classList.contains('m-drawer-open')) mSetDrawer(false); });
+    const onChange = () => mobileShellAfterSwitch(typeof currentView !== 'undefined' ? currentView : 'home');
+    if(mShellMQ){ if(mShellMQ.addEventListener) mShellMQ.addEventListener('change', onChange); else if(mShellMQ.addListener) mShellMQ.addListener(onChange); }
+    document.body.classList.toggle('m-shell', mIsShell());
+  })();
+  /* MOBILE_SHELL_END */
   function switchTab(tab){
     currentView = tab;
+    try{ queueMicrotask(() => { try{ mobileShellAfterSwitch(tab); }catch(e){} }); }catch(e){}
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-tab') === tab));
     const mainInner = document.getElementById('main-inner');
     mainInner.classList.toggle('wide', tab === 'home');
@@ -19673,7 +19817,8 @@
     let st = examState.selections[idx];
     if(!st || typeof st !== 'object' || !Array.isArray(st.answers)){ st = { answers: [] }; examState.selections[idx] = st; }
     const lab = q.lab;
-    let html = `<div class="pbq-prompt">${escapeHtml(lab.story)}</div><div class="pbq-cli-box cli-term lab-term">`;
+    // the exam question text already includes the story for simulations, so don't print it twice
+    let html = `${String(q.question || '').includes(lab.story) ? '' : `<div class="pbq-prompt">${escapeHtml(lab.story)}</div>`}<div class="pbq-cli-box cli-term lab-term">`;
     lab.steps.forEach((step, i) => {
       const a = st.answers[i];
       if(i > st.answers.length) return;
@@ -19897,7 +20042,7 @@
     clearInterval(examTimerInterval);
     const el = document.getElementById('exam-timer');
     if(!examState.endTime){
-      el.textContent = '⏱️ Untimed exam — take your time';
+      el.textContent = 'Untimed';
       el.classList.remove('low-time');
       return;
     }
@@ -19918,7 +20063,8 @@
     const totalSec = Math.floor(remainingMs / 1000);
     const mm = Math.floor(totalSec / 60);
     const ss = totalSec % 60;
-    el.textContent = `Time remaining: ${mm}:${ss.toString().padStart(2,'0')}`;
+    el.textContent = `⏱ ${mm}:${ss.toString().padStart(2,'0')}`;
+    el.setAttribute('aria-label', `Time remaining ${mm} minutes ${ss} seconds`);
     el.classList.toggle('low-time', remainingMs < 5*60000);
   }
 
@@ -19933,6 +20079,11 @@
       progressText += ` · ${done.filter(g => g.isCorrect).length}/${done.length} correct so far`;
     }
     document.getElementById('exam-progress-text').textContent = progressText;
+    document.body.classList.add('exam-active');
+    const ttl = document.getElementById('exam-topbar-title');
+    if(ttl){ const cl = (CERTIFICATIONS[examState.certKey] || {}).label || 'Exam'; ttl.textContent = `${cl.replace(/\s*\(.*\)$/, '')} ${examState.form ? '· Practice Exam ' + examState.form : (examState.isColdRun ? '· Cold Run' : 'Exam Mode')}`; }
+    const ptag = document.getElementById('exam-progress-tag');
+    if(ptag) ptag.textContent = (examState.flagged || []).filter(Boolean).length ? `${(examState.flagged || []).filter(Boolean).length} flagged` : '';
     document.getElementById('exam-progress-bar-fill').style.width = (examState.currentIndex / total * 100) + '%';
     if(!examState.sgtMidShown && examState.currentIndex >= Math.floor(total / 2) && total >= 6){
       examState.sgtMidShown = true;
@@ -19996,15 +20147,18 @@
         ? `Select ${needed} answers${instant ? ', then click "Check Answer".' : '.'}`
         : (instant ? 'Select one answer — you\'ll see right away whether it\'s correct.' : 'Select one answer.');
       const currentSelection = examState.selections[examState.currentIndex] || [];
-      (q._displayOptions || q.options).forEach(opt => {
+      (q._displayOptions || q.options).forEach((opt, oi) => {
         const btn = document.createElement('button');
-        btn.className = 'exam-option-btn' + (currentSelection.includes(opt) ? ' selected' : '');
+        btn.type = 'button';
+        btn.className = 'exam-option-btn' + (needed > 1 ? ' multi' : '') + (currentSelection.includes(opt) ? ' selected' : '');
+        btn.setAttribute('role', needed > 1 ? 'checkbox' : 'radio');
+        btn.setAttribute('aria-checked', currentSelection.includes(opt) ? 'true' : 'false');
         if(checkedGrade){
           btn.disabled = true;
           if(q.answer.includes(opt)) btn.classList.add('fb-correct');
           else if(currentSelection.includes(opt)) btn.classList.add('fb-incorrect');
         }
-        btn.innerHTML = `<span class="opt-mark"></span><span>${escapeHtml(opt)}</span>`;
+        btn.innerHTML = `<span class="opt-letter">${String.fromCharCode(65 + oi)}.</span><span class="opt-text">${escapeHtml(opt)}</span><span class="opt-mark" aria-hidden="true"></span>`;
         btn.addEventListener('click', () => toggleExamOption(opt, needed));
         optsWrap.appendChild(btn);
       });
@@ -20026,14 +20180,21 @@
 
     document.getElementById('exam-back-btn').style.display = examState.currentIndex === 0 ? 'none' : 'inline-block';
     const isLast = examState.currentIndex === total - 1;
+    document.getElementById('exam-runner').classList.toggle('exam-last', isLast);
     document.getElementById('exam-next-btn').style.display = isLast ? 'none' : 'inline-block';
     document.getElementById('exam-submit-btn').style.display = 'none';
     document.getElementById('exam-review-btn').style.display = 'inline-block';
     const flagBtn = document.getElementById('exam-flag-btn');
     const isFlagged = !!(examState.flagged && examState.flagged[examState.currentIndex]);
-    flagBtn.textContent = isFlagged ? '🚩 Flagged (click to unflag)' : '🚩 Flag for Review';
+    flagBtn.textContent = isFlagged ? '🚩 Flagged' : 'Flag';
+    flagBtn.setAttribute('aria-pressed', isFlagged ? 'true' : 'false');
+    flagBtn.title = isFlagged ? 'Flagged for review (tap to unflag)' : 'Flag this question for review';
     flagBtn.classList.toggle('primary', isFlagged);
     renderExamQGrid('exam-qgrid', false);
+    const qsum = document.getElementById('exam-qgrid-sum');
+    if(qsum){ const answered = examState.questions.filter((qq, i) => isQuestionAnswered(qq, examState.selections[i])).length; qsum.textContent = `${answered}/${total} answered`; }
+    const qwrap = document.getElementById('exam-qgrid-wrap');
+    if(qwrap && !qwrap.dataset.init){ qwrap.dataset.init = '1'; qwrap.open = !mIsShell(); }
   }
 
   /* Approximates "has this question been touched" for the grid navigator —
@@ -20839,6 +21000,7 @@
   function finishExam(){
     if(!examState || examState.finished) return;
     examState.finished = true;
+    document.body.classList.remove('exam-active');
     clearInterval(examTimerInterval);
     document.getElementById('exam-runner').style.display = 'none';
     document.getElementById('exam-review-screen').style.display = 'none';
@@ -20983,6 +21145,7 @@
 
   function resetExamPanel(){
     examState = null;
+    document.body.classList.remove('exam-active');
     clearInterval(examTimerInterval);
     document.getElementById('exam-intro').style.display = 'block';
     document.getElementById('exam-runner').style.display = 'none';
@@ -21434,6 +21597,7 @@
     examState.flagged[idx] = !examState.flagged[idx];
     renderExamQuestion();
   });
+  document.getElementById('exam-grid-review-btn').addEventListener('click', () => { document.getElementById('exam-review-btn').click(); });
   document.getElementById('exam-review-btn').addEventListener('click', () => {
     showExamReviewScreen();
   });
