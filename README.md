@@ -242,6 +242,38 @@ The keyword heuristic undercounts this bank's scenarios. It only recognizes part
 - **Fix:** in every Terminal Lab multiple-choice step, the right answer used to be the first option. The options are now shuffled in the data.
 - **Tests:** `tests/pbq-scoring.test.js` (new, 18 checks) covers partial credit per type, the points tiers, all 10 simulations, the Terminal Lab unlock, and a full practice exam scored in points. The readiness test gained 2 points checks (22). Full regression: 26 + 28 + 14 + 22 + 16 + 23 + 18, all passing.
 
+### Command flashcards (simple memorization)
+The five-mode CLI trainer is replaced by plain two-sided flashcards (CLI Mastery → Flashcards). Terminal Lab is unchanged and stays a separate section.
+- **Card sides:** the front shows a plain-English description of what a command does, never the command itself. Tap to flip. The back shows the command as the largest element, a one-line explanation, each flag explained, and an optional **Alternative Commands or Syntax** section.
+- **Alternatives** are grouped as:
+  - *Equivalent syntax (same command)*: accepted when typed.
+  - *Different command, similar job*: shown with its platform, never accepted as the answer.
+  - *Long form*: a note when no long form exists.
+  No card claims what CompTIA's exam simulations accept.
+- **Directions:** Description → Command (default) or Command → Description.
+- **Type the Command:** an optional toggle with a text box and Check Answer button. It accepts documented equivalent forms only: option order, separate or combined options, long options, sudo, and case on Windows where Windows ignores it.
+- **Ratings:** Got It, Almost or Missed It, tracked per command with the app's SM-2 scheduler.
+  - Missed It brings the command back in about 10 minutes and puts it first in the next review.
+  - Almost brings it back the next day.
+  - **Review missed only** reviews just the missed (and Almost) commands.
+  - A CLI or terminal PBQ missed in an exam puts that command back into review.
+- **Progress:** stats show commands mastered, still being learned and needing review, and the full command list shows each command's status. Progress is saved under `cybersec_cmd_cards_v1` and included in Backup. History from the old trainer carries over once for commands with the same id.
+- **Deck:** 85 cards in 5 categories:
+  - Windows Networking (18)
+  - Windows Security (16)
+  - Linux Networking (16)
+  - Linux Security and Administration (19)
+  - Security Tools (16)
+  - The deck covers every command in the spec. Flag variants get their own card when their purpose differs (for example `ipconfig /all`, `ss -tulpn`, `nmap -sV`, `grep -v`). A few existing security commands were kept: `certutil -hashfile`, `icacls`, `sha256sum`, `tail -f` and `systemctl status`.
+- **Phone layout:** large text, the whole card is the tap target, large rating and Previous/Next buttons, long commands wrap with no horizontal scrolling, and it works offline like the rest of the app.
+- **Tests:** `tests/cmd-cards.test.js` (new, 48 checks) covers:
+  - the card data rules: the front never names the command, and flags are explained;
+  - typed acceptance across the deck, including that "different command" alternatives are rejected;
+  - scheduling, missed-first order and Review missed only;
+  - PBQ priority, persistence and the one-time migration.
+
+  `tests/app-integration.test.js` now drives the flip cards and Type the Command through the real UI. Full regression: 16 + 14 + 28 + 48 + 26 + 18 + 23 + 22, all passing.
+
 ### Notes
 - Practice scores are not an official CompTIA prediction. CompTIA's scaled scoring is proprietary.
 - Third-party practice exams (for example, Professor Messer's) are kept out of this app on purpose, so they stay independent readiness checks.

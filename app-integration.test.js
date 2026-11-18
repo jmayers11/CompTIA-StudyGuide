@@ -39,7 +39,7 @@ document.getElementById('exam-cert-select').value = 'security_plus';
 const windowObj = new Proxy({ localStorage, document, addEventListener(){}, removeEventListener(){}, setTimeout: (f) => 0, setInterval: () => 0, clearInterval(){}, clearTimeout(){},
   confirm: () => true, alert: () => {}, matchMedia: () => ({ matches: false, addEventListener(){}, addListener(){} }), requestAnimationFrame: () => 0, navigator: { serviceWorker: undefined, userAgent: 'node' }, location: { reload(){}, href: '', hash: '' }, innerWidth: 1200, innerHeight: 800 },
   { get(t, p){ if(p in t) return t[p]; if(p in globalThis) return globalThis[p]; return anything(); } });
-code = code.replace(/\}\)\(\);\s*$/, '  ;globalThis.__hooks = { exposure, getExamPolicy, renderExposureDashboard, cliTrainer, renderCliTab, renderCliCard, cliExpected, getCliSession: () => cliSession, gradeExamQuestion, instantiatePBQ, PBQ_BANK, renderExamQuestion, getExamState: () => examState, startLab, labSubmit, getLabRun: () => labRun, labEngine, showCliSection, CLI_LABS, renderReadiness, computeReadiness }; })();');
+code = code.replace(/\}\)\(\);\s*$/, '  ;globalThis.__hooks = { exposure, getExamPolicy, renderExposureDashboard, cliTrainer, renderCliTab, cmdCards, getCmdSession: () => cmdSession, renderCmdCard, CMD_CARDS, gradeExamQuestion, instantiatePBQ, PBQ_BANK, renderExamQuestion, getExamState: () => examState, startLab, labSubmit, getLabRun: () => labRun, labEngine, showCliSection, CLI_LABS, renderReadiness, computeReadiness }; })();');
 globalThis.pdfjsLib = anything(); globalThis.JSZip = anything(); globalThis.sessionStorage = localStorage; globalThis.getComputedStyle = () => anything(); globalThis.HTMLElement = function(){}; globalThis.Element = function(){};
 const run = new Function('window','document','localStorage','navigator','location','confirm','alert','setTimeout','setInterval','clearInterval','clearTimeout','matchMedia','requestAnimationFrame','Event', code);
 class Ev { constructor(t){ this.type = t; } }
@@ -77,29 +77,33 @@ try{
   const H = globalThis.__hooks;
   const pbqMap = H.cliTrainer.raw().pbq;
   out.push('CLI commands flagged from missed PBQs: ' + Object.keys(pbqMap).join(', '));
-  // Phase 2: drive the Command-Line Mastery tab
+  // Command flashcards: flip cards, typed recall, ratings (replaces the old five-mode trainer)
   H.renderCliTab();
-  const sumTxt = document.getElementById('cli-summary').innerHTML.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-  out.push('CLI summary: ' + sumTxt.slice(0, 160));
-  document.getElementById('cli-start-btn').click();
-  const sess = H.getCliSession();
-  let graded = [];
-  for(let i = 0; i < 6 && sess; i++){
-    const card = sess.queue[sess.idx];
-    const area = document.getElementById('cli-card-area').innerHTML;
-    const header = (area.match(/Card \d+ of \d+/) || [''])[0];
-    if(card.mode === 'B'){ document.getElementById('cli-reveal-btn').click(); }
-    else {
-      const ans = card.mode === 'D' ? (card.cmd.comp.ans[0].flags || card.cmd.comp.ans[0]) : H.cliExpected(card);
-      document.getElementById('cli-answer').value = (i % 3 === 2 && card.mode !== 'D') ? 'definitely-wrong' : ans;
-      document.getElementById('cli-check-btn').click();
-    }
-    const res = document.getElementById('cli-result').innerHTML;
-    graded.push({ header, mode: card.mode, cmd: card.cmd.id, verdict: /✓ Correct/.test(res) ? 'correct' : (/Not quite/.test(res) ? 'wrong' : 'revealed'), rated: /Didn't Know/.test(res) && /I Know This/.test(res) });
-    H.cliTrainer.review(card, /✓ Correct/.test(res) ? 'know' : 'dk', /✓ Correct/.test(res)); sess.idx++; H.renderCliCard(); // rating buttons are wired via innerHTML, so rate through the trainer here
-  }
-  graded.forEach(g => out.push('CLI card ' + JSON.stringify(g)));
+  const sumTxt = document.getElementById('cmdc-summary').innerHTML.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  out.push('Card summary: ' + sumTxt.slice(0, 160));
+  document.getElementById('cmdc-typed').checked = false; document.getElementById('cmdc-dir').value = 'd2c';
+  document.getElementById('cmdc-start').click();
+  const sess = H.getCmdSession();
+  const graded = [];
+  const front = document.getElementById('cmdc-area').innerHTML;
+  const c0 = sess.queue[0];
+  const esc = x => String(x).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  graded.push({ frontHasDesc: front.includes(esc(c0.desc)), frontHidesCmd: !/class="cmdc-cmd/.test(front), tap: /Tap to flip/.test(front) });
+  document.getElementById('cmdc-card').click();
+  const back = document.getElementById('cmdc-area').innerHTML;
+  graded.push({ backHasCmd: /class="cmdc-cmd( cmdc-cmd-long)?"/.test(back) && back.includes(esc(c0.cmd)), rateButtons: /Missed It/.test(back) && /Almost/.test(back) && /Got It/.test(back) });
+  document.querySelector = () => null;
+  H.cmdCards.rate(c0.id, 'missed'); sess.rated[c0.id] = 'missed'; sess.idx++; sess.flipped = false; H.renderCmdCard();
+  // typed recall on the next card
+  document.getElementById('cmdc-typed').checked = true;
+  sess.typed = true; H.renderCmdCard();
+  const c1 = sess.queue[1];
+  document.getElementById('cmdc-input').value = c1.cmd;
+  document.getElementById('cmdc-check').click();
+  const typedBack = document.getElementById('cmdc-area').innerHTML;
+  graded.push({ typedCorrect: /✓ Correct/.test(typedBack) && /class="cmdc-cmd( cmdc-cmd-long)?"/.test(typedBack) });
   globalThis.__cliGraded = graded; globalThis.__cliPbq = Object.keys(pbqMap);
+  globalThis.__cmdMissed = H.cmdCards.status(c0.id);
   // Phase 4: new PBQ types grade correctly and render inside a real exam
   const newTypes = H.PBQ_BANK.filter(p => p.cert === 'security_plus' && ['evidence','config','zones'].includes(p.type));
   let pbqOk = 0, pbqBad = [];
@@ -155,17 +159,17 @@ const checks = [
   ['each Cold Run is 90 questions', results.length === 3 && results.every(x => x.prog === 'Question 1 of 90')],
   ['each Cold Run: 86 never-seen, 0 from last 3, 100% unique', results.every(x => x.f.stats && x.f.stats[0] === 86 && x.f.stats[3] === 0 && x.f.stats[2] === 100)],
   ['Cold Runs are numbered #1-#3', results.every(x => x.f.label === 'Cold Run #' + x.r)],
-  ['CLI tab renders its summary and starts a 20-card session', /commands mastered/.test(out.join(' ')) && (globalThis.__cliGraded || []).length === 6 && globalThis.__cliGraded.every((g, i) => g.header === 'Card ' + (i + 1) + ' of 20')],
-  ['typed answers graded: expected answers correct, wrong answers rejected, rating buttons shown', (globalThis.__cliGraded || []).every((g, i) => g.rated && (g.mode === 'B' ? g.verdict === 'revealed' : (i % 3 === 2 && g.mode !== 'D' ? g.verdict === 'wrong' : g.verdict === 'correct')))],
+  ['command flashcards: front shows the description only, tap flips to the command with Got It / Almost / Missed It', /commands mastered/.test(out.join(' ')) && globalThis.__cliGraded && globalThis.__cliGraded[0].frontHasDesc && globalThis.__cliGraded[0].frontHidesCmd && globalThis.__cliGraded[0].tap && globalThis.__cliGraded[1].backHasCmd && globalThis.__cliGraded[1].rateButtons],
+  ['Type the Command checks a typed answer and reveals the card; Missed It puts the command into review', globalThis.__cliGraded && globalThis.__cliGraded[2].typedCorrect && globalThis.__cmdMissed === 'review'],
   ['missed CLI PBQs in Cold Runs are recorded against their command', (globalThis.__cliPbq || []).length > 0],
-  ['CLI progress persists across an app restart', /cybersec_cli_mastery_v1/.test(Object.keys(store).join(' ')) && JSON.parse(store['cybersec_cli_mastery_v1']).cmds && Object.keys(JSON.parse(store['cybersec_cli_mastery_v1']).cmds).length > 0],
+  ['flashcard progress is saved to storage', !!store['cybersec_cmd_cards_v1'] && Object.keys(JSON.parse(store['cybersec_cmd_cards_v1']).c).length > 0],
   ['new PBQ types (evidence, config, zones) grade right/wrong/blank correctly', globalThis.__pbq && globalThis.__pbq.n >= 14 && globalThis.__pbq.ok === globalThis.__pbq.n],
   ['new PBQ types render inside a practice exam without errors', globalThis.__pbq && globalThis.__pbq.rendered === globalThis.__pbq.n && !globalThis.__pbq.renderErr.length],
   ['terminal PBQs render in exams and grade from typed answers', globalThis.__lab && globalThis.__lab.termN >= 8 && globalThis.__lab.termRendered === globalThis.__lab.termN && globalThis.__lab.termGraded === globalThis.__lab.termN],
   ['Terminal Lab: near-miss feedback, completion, partial-credit scoring recorded', globalThis.__lab && globalThis.__lab.done && globalThis.__lab.near && globalThis.__lab.best === 0.875 && globalThis.__lab.msg],
   ['exam results label the 100-900 score as an unofficial estimate next to the official 750', globalThis.__ready && globalThis.__ready.labeled],
   ['exam attempts store Cold Run, fresh/repeat and PBQ counts', globalThis.__ready && globalThis.__ready.attempts.length === 3 && globalThis.__ready.attempts.every(a => a.coldRun === true && a.freshTotal === 86 && a.freshTotal + a.repeatTotal + a.pbqTotal === 90 && a.pbqTotal === 4 && typeof a.weightedPct === 'number')],
-  ['readiness tab renders disclaimer, confidence from 258 fresh questions, trend and domains', globalThis.__ready && /Unofficial practice estimate/.test(globalThis.__ready.rd) && /across 258 fresh questions/.test(globalThis.__ready.rd) && /official passing score \(CompTIA\)/.test(globalThis.__ready.rd) && /Cold Run trend/.test(globalThis.__ready.rd) && /5\.0 Security Program Management/.test(globalThis.__ready.rd) && /core commands mastered/.test(globalThis.__ready.rd)],
+  ['readiness tab renders disclaimer, confidence from 258 fresh questions, trend and domains', globalThis.__ready && /Unofficial practice estimate/.test(globalThis.__ready.rd) && /across 258 fresh questions/.test(globalThis.__ready.rd) && /official passing score \(CompTIA\)/.test(globalThis.__ready.rd) && /Cold Run trend/.test(globalThis.__ready.rd) && /5\.0 Security Program Management/.test(globalThis.__ready.rd) && /commands mastered \(flashcards\)/.test(globalThis.__ready.rd)],
   ['exposure persists across an app restart', /3 Cold Runs taken/.test(out.join(' ')) && /after restart: .*you've seen \d+ of \d+/.test(out.join(' ')) && /unchanged by restart/.test(out.join(' '))]
 ];
 let failed = 0; checks.forEach(([n, ok]) => { if(!ok){ failed++; console.log('  FAIL ' + n); } });
