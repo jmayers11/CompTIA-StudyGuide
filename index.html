@@ -3830,6 +3830,12 @@
   #quiz-submit-btn{ display:block; width:100%; margin-top:14px; min-height:var(--tap); border-radius:999px; font-size:15px; text-transform:none; letter-spacing:0; }
   #quiz-submit-btn:disabled, #exam-check-btn:disabled, .daily-challenge-submit:disabled{ opacity:.45; cursor:not-allowed; }
   .daily-challenge-submit{ margin-top:10px; width:100%; min-height:var(--tap); border-radius:999px; text-transform:none; letter-spacing:0; }
+  .saved-exam-card{ border:1px solid var(--accent); border-radius:var(--radius-lg); padding:14px 16px; margin:0 0 16px; background:rgba(var(--accent-rgb),0.07); }
+  .saved-exam-title{ font-weight:700; font-size:15px; color:var(--accent); }
+  .saved-exam-name{ font-weight:600; margin-top:4px; }
+  .saved-exam-line{ font-size:13px; color:var(--muted); margin-top:2px; }
+  .saved-exam-actions{ display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+  .saved-exam-actions .btn{ min-height:var(--tap); border-radius:999px; text-transform:none; letter-spacing:0; flex:1 1 140px; }
   .exam-grid-review-row{ display:flex; justify-content:flex-end; margin:0 10px 12px; }
   .exam-grid-review-row .btn{ min-height:44px; border-radius:999px; text-transform:none; letter-spacing:0; }
   body.m-shell #m-tabctx:empty{ display:none; }
@@ -4058,6 +4064,7 @@
       <div id="home-greeting"></div>
       <div id="home-countdown"></div>
       <div id="home-recommend"></div>
+      <div id="home-saved-exam"></div>
       <div id="home-daily-challenge"></div>
       <div id="home-weekly-recap"></div>
       <div id="home-daily-fact"></div>
@@ -4243,6 +4250,7 @@
 
     <div id="exam-panel" style="display:none;">
       <div id="exam-intro">
+        <div id="exam-saved-slot"></div>
         <h2>Ready for a full-length practice exam?</h2>
         <p>Configure everything below, then click "Start Exam". With <strong>Instant feedback</strong> on, you see whether each answer is right or wrong — and why — as soon as you answer. Turn it off (or use Cold Run) to simulate the real thing, where nothing is revealed until you submit.</p>
 
@@ -19245,8 +19253,96 @@
     document.body.classList.toggle('m-shell', mIsShell());
   })();
   /* MOBILE_SHELL_END */
+  /* EXAM_SAVE_START */
+  /* Save and resume for untimed exams. The whole exam (questions as served, answers, flags,
+     instant-feedback results, position) is written to localStorage after every change and when
+     the page is hidden, so closing the browser tab on a phone doesn't lose progress. Timed exams
+     are not saved: their clock can't pause, so resuming one wouldn't be a fair timed attempt. */
+  const EXAM_SAVE_KEY = 'cybersec_exam_inprogress_v1';
+  function examSaveReplacer(k, v){
+    if(v instanceof RegExp) return { __re: [v.source, v.flags] };
+    if(k === 'lab' && v && typeof v === 'object' && v.id && Array.isArray(v.steps)) return { __lab: v.id };
+    return v;
+  }
+  function examSaveReviver(k, v){
+    if(v && typeof v === 'object' && Array.isArray(v.__re)){ try{ return new RegExp(v.__re[0], v.__re[1]); }catch(e){ return /$^/; } }
+    if(k === 'lab' && v && typeof v === 'object' && v.__lab) return CLI_LABS.find(l => l.id === v.__lab) || null;
+    return v;
+  }
+  function examIsSavable(st){ return !!(st && !st.finished && !st.endTime && st.questions && st.questions.length); }
+  function saveExamProgress(){
+    try{
+      if(!examIsSavable(examState)) return false;
+      const answered = examState.questions.filter((q, i) => q.type !== 'order' && isQuestionAnswered(q, examState.selections[i])).length;
+      const payload = { v: 1, savedAt: Date.now(), answered, state: examState };
+      return lsSet(EXAM_SAVE_KEY, JSON.stringify(payload, examSaveReplacer)) !== false;
+    }catch(e){ return false; }
+  }
+  function loadSavedExam(){
+    try{
+      const raw = localStorage.getItem(EXAM_SAVE_KEY);
+      if(!raw) return null;
+      const p = JSON.parse(raw, examSaveReviver);
+      if(!p || p.v !== 1 || !examIsSavable(p.state)) return null;
+      if(p.state.questions.some(q => q.type === 'terminal' && !q.lab)) return null; // a lab was removed in an update
+      return p;
+    }catch(e){ return null; }
+  }
+  function clearSavedExam(){ try{ localStorage.removeItem(EXAM_SAVE_KEY); }catch(e){} renderSavedExamCards(); }
+  function savedExamSummary(p){
+    const s = p.state, cert = (CERTIFICATIONS[s.certKey] || {}).label || s.certLabel || 'Exam';
+    const kind = s.form ? `Practice Exam ${s.form}` : (s.isColdRun ? 'Cold Run' : 'Practice exam');
+    const when = new Date(p.savedAt);
+    return { title: `${cert} · ${kind} (untimed)`, line: `Question ${s.currentIndex + 1} of ${s.questions.length} · ${p.answered} answered · saved ${when.toLocaleDateString()} ${when.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` };
+  }
+  function resumeSavedExam(){
+    const p = loadSavedExam();
+    if(!p){ clearSavedExam(); showToast('That saved exam could not be restored.'); return false; }
+    if(typeof switchTab === 'function' && currentView !== 'exam') switchTab('exam');
+    examState = p.state;
+    examState.finished = false;
+    whyGlossary = null;
+    startExamTimer();
+    document.getElementById('exam-intro').style.display = 'none';
+    document.getElementById('exam-summary').style.display = 'none';
+    document.getElementById('exam-review-screen').style.display = 'none';
+    document.getElementById('exam-runner').style.display = 'block';
+    renderExamQuestion();
+    try{ document.getElementById('exam-runner').scrollIntoView({ block: 'start' }); }catch(e){}
+    return true;
+  }
+  function savedExamCardHtml(where){
+    const p = loadSavedExam();
+    if(!p) return '';
+    const s = savedExamSummary(p);
+    return `<div class="saved-exam-card" role="region" aria-label="Saved exam">
+      <div class="saved-exam-title">⏸ Untimed exam in progress</div>
+      <div class="saved-exam-name">${escapeHtml(s.title)}</div>
+      <div class="saved-exam-line">${escapeHtml(s.line)}</div>
+      <div class="saved-exam-actions"><button type="button" class="btn primary" data-saved-exam="resume">Resume exam</button><button type="button" class="btn" data-saved-exam="discard">Discard</button></div>
+    </div>`;
+  }
+  function renderSavedExamCards(){
+    ['exam-saved-slot', 'home-saved-exam'].forEach(id => {
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.innerHTML = savedExamCardHtml(id);
+      el.querySelectorAll('[data-saved-exam]').forEach(b => b.addEventListener('click', () => {
+        if(b.getAttribute('data-saved-exam') === 'resume') resumeSavedExam();
+        else if(confirm('Discard the saved exam? Your answers in it will be lost.')) clearSavedExam();
+      }));
+    });
+  }
+  (function initExamSave(){
+    const flush = () => { if(examIsSavable(examState)) saveExamProgress(); };
+    try{ document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') flush(); }); }catch(e){}
+    try{ window.addEventListener('pagehide', flush); }catch(e){}
+    renderSavedExamCards();
+  })();
+  /* EXAM_SAVE_END */
   function switchTab(tab){
     currentView = tab;
+    try{ queueMicrotask(() => { try{ if(tab === 'exam' || tab === 'home') renderSavedExamCards(); }catch(e){} }); }catch(e){}
     try{ queueMicrotask(() => { try{ mobileShellAfterSwitch(tab); }catch(e){} }); }catch(e){}
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-tab') === tab));
     const mainInner = document.getElementById('main-inner');
@@ -20061,7 +20157,8 @@
     clearInterval(examTimerInterval);
     const el = document.getElementById('exam-timer');
     if(!examState.endTime){
-      el.textContent = 'Untimed';
+      el.textContent = 'Untimed · saved';
+      el.title = 'Untimed exams save automatically. Close the page anytime and resume from Exam Mode or Home.';
       el.classList.remove('low-time');
       return;
     }
@@ -20219,6 +20316,7 @@
     if(qsum){ const answered = examState.questions.filter((qq, i) => isQuestionAnswered(qq, examState.selections[i])).length; qsum.textContent = `${answered}/${total} answered`; }
     const qwrap = document.getElementById('exam-qgrid-wrap');
     if(qwrap && !qwrap.dataset.init){ qwrap.dataset.init = '1'; qwrap.open = !mIsShell(); }
+    if(examIsSavable(examState)){ clearTimeout(renderExamQuestion._saveT); renderExamQuestion._saveT = setTimeout(saveExamProgress, 250); }
   }
 
   /* Approximates "has this question been touched" for the grid navigator —
@@ -21023,6 +21121,7 @@
     if(!examState || examState.finished) return;
     examState.finished = true;
     document.body.classList.remove('exam-active');
+    try{ clearTimeout(renderExamQuestion._saveT); clearSavedExam(); }catch(e){}
     clearInterval(examTimerInterval);
     document.getElementById('exam-runner').style.display = 'none';
     document.getElementById('exam-review-screen').style.display = 'none';
@@ -21516,6 +21615,14 @@
   document.getElementById('exam-check-btn').addEventListener('click', checkCurrentExamQuestion);
   document.getElementById('exam-exit-btn').addEventListener('click', () => {
     if(!examState) return;
+    if(examIsSavable(examState)){
+      clearTimeout(renderExamQuestion._saveT);
+      saveExamProgress();
+      resetExamPanel();
+      renderSavedExamCards();
+      showToast('Exam saved. Resume it anytime from Exam Mode or Home.');
+      return;
+    }
     /* Ordering questions start pre-filled with a shuffled order, so they don't count as "touched". */
     const touched = examState.checked.some(Boolean) ||
       examState.questions.some((q, i) => q.type !== 'order' && isQuestionAnswered(q, examState.selections[i]));
@@ -21524,6 +21631,10 @@
   });
 
   document.getElementById('exam-start-btn').addEventListener('click', () => {
+    if(loadSavedExam()){
+      if(!confirm('You have a saved untimed exam. Starting a new exam will discard it. Continue?')) return;
+      clearSavedExam();
+    }
     whyGlossary = null; // pick up any notes edited since the last attempt
     const useWeighting = document.getElementById('exam-use-weighting').checked;
     const source = getExamSource();

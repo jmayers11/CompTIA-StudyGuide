@@ -307,6 +307,16 @@ The five-mode CLI trainer is replaced by plain two-sided flashcards (CLI Mastery
 - Cold Runs and other exams without instant feedback are unchanged: answers are graded only when you submit the exam.
 - **Tests:** `tests/instant-submit.test.js` (new, 14 checks). Full regression: all 9 test files pass.
 
+### Save and resume for untimed exams
+- **How saving works:** an untimed exam saves itself to the device after every answer, flag or move, and again when the page is hidden or closed (`visibilitychange` / `pagehide`). Closing the tab on a phone no longer loses progress. The timer area shows "Untimed · saved".
+- **Resuming:** a **Resume exam** card appears on Home and at the top of Exam Mode. It shows the exam, the question you were on, how many you've answered and when it was saved. Resume picks up at the same question with the same questions, answers, flags and instant-feedback results. Discard (with confirmation) removes the saved exam.
+- **The back arrow** saves the exam and leaves it, instead of discarding it.
+- **Submitting** grades the exam as usual and deletes the saved copy.
+- **Starting a different exam** while one is saved asks first, then replaces it.
+- **Timed exams (including Cold Runs and Practice Exams 1–10) are not saved**, because their clock can't pause fairly.
+- **Storage:** key `cybersec_exam_inprogress_v1`. Saved data includes CLI answer patterns and Terminal Lab references. A corrupted or outdated save is ignored rather than breaking the app.
+- **Tests:** `tests/exam-save.test.js` (new, 15 checks) saves, simulates closing and reopening the app, resumes, checks every detail, then covers the back arrow, submit, timed exams, replacing a save and a corrupted save. Full regression: all 10 test files pass.
+
 ### Notes
 - Practice scores are not an official CompTIA prediction. CompTIA's scaled scoring is proprietary.
 - Third-party practice exams (for example, Professor Messer's) are kept out of this app on purpose, so they stay independent readiness checks.
