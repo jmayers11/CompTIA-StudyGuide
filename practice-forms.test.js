@@ -66,13 +66,26 @@ try{
   ok('no exam contains two near-duplicate questions', forms.every(f => { const s = new Set(Object.keys(f.mc).reduce((a, k) => a.concat(f.mc[k]), [])); return groups.every(g => g.filter(id => s.has(id)).length <= 1); }));
   ok('each exam has a command-line PBQ (cli or terminal)', forms.every(f => f.pbq.some(id => ['cli', 'terminal'].includes(defs[id].type))));
   ok('the fresh mix draws from a bank that contains every practice exam', all.every(id => bankIds.has(id)));
+  // CySA+ practice exams: 81 MC (28/21/19/13) + 4 PBQs incl. one large simulation, disjoint, valid
+  const cf = H.PRACTICE_FORMS.cysa || [];
+  const cIds = new Set(H.QUESTION_BANKS.cysa.map(q => q.oid || H.exposure.qid(q.question)));
+  const cDefs = {}; H.PBQ_BANK.filter(p => p.cert === 'cysa').forEach(p => { cDefs[H.exposure.qid(p.prompt)] = p; });
+  const cAll = [], cP = []; cf.forEach(f => { Object.keys(f.mc).forEach(k => cAll.push(...f.mc[k])); cP.push(...f.pbq); });
+  ok('CySA+: 10 practice exams, 81 MC split 28/21/19/13 + 4 PBQs each', cf.length === 10 && cf.every(f => f.mc.secops.length === 28 && f.mc.vulnmgmt.length === 21 && f.mc.ir_mgmt.length === 19 && f.mc.reporting.length === 13 && f.pbq.length === 4));
+  ok('CySA+: no overlap, all IDs valid and not supplemental, one large simulation per exam', new Set(cAll).size === 810 && new Set(cP).size === 40 && cAll.every(id => cIds.has(id) && !H.EXPOSURE_SUPPLEMENTAL_SET.has(id)) && cf.every(f => f.pbq.every(id => cDefs[id]) && f.pbq.filter(id => cDefs[id].sim).length === 1));
+  const nf = H.PRACTICE_FORMS.network_plus || [];
+  const nIds = new Set(H.QUESTION_BANKS.network_plus.map(q => q.oid || H.exposure.qid(q.question)));
+  const nDefs = {}; H.PBQ_BANK.filter(p => (p.cert || 'network_plus') === 'network_plus').forEach(p => { nDefs[H.exposure.qid(p.prompt)] = p; });
+  const nAll = [], nP = []; nf.forEach(f => { Object.keys(f.mc).forEach(k => nAll.push(...f.mc[k])); nP.push(...f.pbq); });
+  ok('Network+: 10 practice exams, 86 MC split 20/17/16/12/21 + 4 PBQs each', nf.length === 10 && nf.every(f => f.mc.fundamentals.length === 20 && f.mc.implementations.length === 17 && f.mc.operations.length === 16 && f.mc.security.length === 12 && f.mc.troubleshooting.length === 21 && f.pbq.length === 4));
+  ok('Network+: no overlap, all IDs valid and not supplemental, one large simulation per exam', new Set(nAll).size === 860 && new Set(nP).size === 40 && nAll.every(id => nIds.has(id) && !H.EXPOSURE_SUPPLEMENTAL_SET.has(id)) && nf.every(f => f.pbq.every(id => nDefs[id]) && f.pbq.filter(id => nDefs[id].sim).length === 1));
 
   // drive the real UI the way a user does: the saved track sets the cert with no change event, then Exam Mode opens
   document.getElementById('exam-form-row').style.display = 'none';
   document.getElementById('exam-cert-select').value = 'security_plus';
   H.switchTab('exam');
   ok('opening Exam Mode on Security+ shows the Cold Run exam picker', document.getElementById('exam-form-row').style.display === '');
-  document.getElementById('exam-cert-select').value = 'network_plus'; H.switchTab('exam');
+  document.getElementById('exam-cert-select').value = 'aplus_core1'; H.switchTab('exam');
   ok('picker is hidden for certs without practice exams', document.getElementById('exam-form-row').style.display === 'none');
   document.getElementById('exam-cert-select').value = 'security_plus'; H.switchTab('exam');
   const opts0 = document.getElementById('exam-coldrun-form').innerHTML;

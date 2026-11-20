@@ -17,7 +17,7 @@ const card = id => CMD_CARDS.find(c => c.id === id);
 
 // data rules
 const cats = new Set(CMD_CARD_CATS.map(c => c.key));
-ok('every card has a front description, a command, a category and a platform', CMD_CARDS.every(c => c.desc && c.cmd && cats.has(c.cat) && ['windows', 'linux', 'powershell'].includes(c.plat)));
+ok('every card has a front description, a command, a category and a platform', CMD_CARDS.every(c => c.desc && c.cmd && cats.has(c.cat) && ['windows', 'linux', 'powershell', 'cisco'].includes(c.plat)));
 ok('the front never contains the command', CMD_CARDS.every(c => !c.desc.toLowerCase().includes(c.cmd.toLowerCase())));
 ok('every card whose command has options or arguments explains them', CMD_CARDS.every(c => c.cmd.split(' ').length === 1 || (c.flags || []).length > 0));
 ok('the front never names the command itself (whole word)', CMD_CARDS.every(c => !new RegExp('\\b' + c.cmd.split(' ')[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(c.desc)));
@@ -29,7 +29,12 @@ ok('every "equivalent syntax" alternative is accepted when typed', CMD_CARDS.eve
 ok('no "different command" alternative is accepted as the answer', CMD_CARDS.every(c => (c.alts || []).filter(a => a.kind === 'different').every(a => !E.check(c, a.cmd))));
 
 ok('deck covers every command named in the spec', ['ipconfig','ping','tracert','nslookup','netstat','arp','route','whoami','net','tasklist','gpresult','ip','ss','traceroute','dig','tcpdump','chmod','chown','grep','ps','journalctl','nmap','openssl','curl'].every(b => CMD_CARDS.some(c => c.cmd.split(' ')[0] === b)));
-ok('five categories, each with cards', CMD_CARD_CATS.length === 5 && CMD_CARD_CATS.every(k => CMD_CARDS.some(c => c.cat === k.key)));
+ok('six categories, each with cards', CMD_CARD_CATS.length === 6 && CMD_CARD_CATS.every(k => CMD_CARDS.some(c => c.cat === k.key)));
+ok('every card is tagged with the tracks it belongs to', CMD_CARDS.every(c => Array.isArray(c.certs) && c.certs.length && c.certs.every(x => ['network_plus', 'security_plus', 'cysa'].includes(x))));
+ok('Network+ deck: networking commands and Cisco IOS, no Linux permissions or Windows account cards', (() => { const n = CMD_CARDS.filter(c => c.certs.includes('network_plus')); return n.length >= 40 && n.some(c => c.cat === 'net-dev') && !n.some(c => c.cat === 'win-sec' && c.id !== 'win-whoami') && !n.some(c => /^chmod|^chown/.test(c.cmd)); })());
+ok('Security+ deck unchanged (85 cards, no Cisco IOS)', CMD_CARDS.filter(c => c.certs.includes('security_plus')).length === 85 && !CMD_CARDS.some(c => c.certs.includes('security_plus') && c.cat === 'net-dev'));
+ok('session and summary follow the selected track', (() => { const e = mk(); return e.buildSession({ cert: 'network_plus' }, 200).every(c => c.certs.includes('network_plus')) && e.summary({ cert: 'network_plus' }).total === CMD_CARDS.filter(c => c.certs.includes('network_plus')).length; })());
+ok('Cisco IOS cards accept common abbreviations', (() => { const e = mk(), c = id => CMD_CARDS.find(x => x.id === id); return e.check(c('ios-show-route'), 'sh ip ro') && e.check(c('ios-show-int'), 'show int gi0/1') && e.check(c('ios-show-mac'), 'show mac-address-table') && e.check(c('ios-show-run'), 'SHOW RUN') && e.check(c('ios-copy-run-start'), 'wr mem') && !e.check(c('ios-show-route'), 'show ip arp'); })());
 // typed acceptance, sample cards
 const n = card('win-netstat-ano'), f = card('win-flushdns'), s = card('lin-ss-tuln');
 ok('netstat: -ano, -a -n -o and -nao accepted', ['netstat -ano', 'netstat -a -n -o', 'netstat -nao', 'NETSTAT -ano', 'C:\\> netstat -ano'].every(x => E.check(n, x)));

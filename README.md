@@ -317,6 +317,64 @@ The five-mode CLI trainer is replaced by plain two-sided flashcards (CLI Mastery
 - **Storage:** key `cybersec_exam_inprogress_v1`. Saved data includes CLI answer patterns and Terminal Lab references. A corrupted or outdated save is ignored rather than breaking the app.
 - **Tests:** `tests/exam-save.test.js` (new, 15 checks) saves, simulates closing and reopening the app, resumes, checks every detail, then covers the back arrow, submit, timed exams, replacing a save and a corrupted save. Full regression: all 10 test files pass.
 
+### Network+ and CySA+ upgrade: audit and first step
+**Audit** (same scripts as the Security+ audit):
+
+| Measure | Network+ (582 q) | CySA+ (1,089 q) | Security+ now |
+| --- | --- | --- | --- |
+| Scenario stems (keyword heuristic) | 6% | 8% | 74% |
+| Definition-style stems | 16% | 29% | 0% |
+| BEST / FIRST / NEXT / MOST wording | 0.7% | 0.5% | 55% |
+| Correct answer is the single longest option | 53% | 77% | 11% |
+| Correct-to-wrong option length ratio | 1.69 | 2.18 | 1.04 |
+| Stem keyword gives away the answer | 8.9% | 13.5% | 3.1% |
+| Questions with a written explanation | 0% | 0% | 100% |
+| Average stem length (words) | 16 | 16 | 27 |
+
+- **Domain balance, Network+:** Concepts 156, Implementation 140, Operations 95, Security 106, Troubleshooting 85. Troubleshooting is 24% of the exam but has the fewest questions.
+- **Domain balance, CySA+:** Security Operations 835 (77% of the bank, 34% of the exam), Vulnerability Management 123, Incident Response 98, Reporting and Communication 33.
+- **PBQs:** Network+ has 50 (match, order, cli, subnet calc, MAC id, build). CySA+ has 28 (match, order, cli, build). Neither has log, config, zone, terminal or large-simulation PBQs.
+- **Already generic, so Network+ and CySA+ get these with no changes:** Cold Run repetition blocker and exposure tracking, Readiness, unofficial score labels, PBQ partial credit and weighting, Submit Answer, save/resume, and the mobile and exam-screen redesign.
+- **Security+ only today:** the question rewrites, the 10 practice exams, the large simulations and terminal labs, and the supplemental set.
+
+**First step done:**
+- **Command flashcards follow the track.** Network+ gets 52 cards: Windows and Linux networking, nmap and tcpdump, plus a new **Network Devices (Cisco IOS)** category with 9 cards (`show interfaces`, `show ip interface brief`, `show ip route`, `show mac address-table`, `show vlan brief`, `show running-config`, `show arp`, `show power inline`, `copy running-config startup-config`). The IOS cards accept common abbreviations such as `sh ip ro` and `wr mem`.
+- CySA+ uses the full 85-card security deck. Security+ is unchanged. Categories with no cards for the track are hidden, and the heading names the track.
+- **Network+ domain names** updated to the N10-009 wording (1.0 Networking Concepts, 2.0 Network Implementation).
+- **Tests:** cmd-cards 53 (5 new). Full regression passes.
+
+### CySA+ (CS0-004) upgrade
+- **607 new original application questions** (`src: original-2026-11-cysa`), each with an explanation and a domain tag:
+  - Security Operations 121, Vulnerability Management 175, Incident Response and Management 182, Reporting and Communication 135.
+  - Wrong options were written to match the correct answer's length. Across the new set, the correct answer is the single longest option 25% of the time, and the correct-to-wrong length ratio is 1.09 (the old bank was 77% and 2.18).
+- **Old questions kept, not deleted:** 869 of the 1,089 original CySA+ questions failed the quality checks (definition-style, or the answer given away by length or a repeated keyword). They are now **supplemental**, so they're excluded from exams by default and can be included with the checkbox in Exam Mode. The 220 that passed stay in the exam pool. The supplemental checkbox is now shown for any cert that has supplemental items.
+- **Exam pool:** Security Operations 284, Vulnerability Management 216, Incident Response 194, Reporting 139, which matches the 34/26/24/16 blueprint.
+- **PBQs:** 54 exam-style PBQs.
+  - 3 new large simulations: vulnerability triage, phishing header analysis and ransomware response order.
+  - The Security+ terminal simulations and log-analysis PBQs are also available on the CySA+ track (23).
+  - Terminal Lab unlocks a simulation once you meet it in an exam on any track.
+- **10 CySA+ practice exams:** each has 81 multiple-choice questions (28/21/19/13) plus 4 PBQs (one command-line, two others, one large simulation). No overlap between exams. They appear in the Cold Run exam picker on the CySA+ track.
+- **Tests:** practice-forms (25 checks, 2 new for CySA+). Full regression passes.
+
+### Network+ (N10-009) upgrade
+- **645 new original application questions** (`src: original-2026-11-net`), each with an explanation and a domain tag:
+  - Networking Concepts 130, Network Implementation 111, Network Operations 123, Network Security 94, Network Troubleshooting 187.
+- **Old questions kept, not deleted:** 348 of the 582 original Network+ questions failed the quality checks and are now supplemental (excluded from exams by default; the checkbox brings them back). The 234 that passed stay in the exam pool.
+- **Exam pool:** 879 questions. Concepts 206, Implementation 174, Operations 164, Security 122, Troubleshooting 213, which matches the 23/20/19/14/24 blueprint.
+  - Correct answer is the single longest option: 17.6% (was 53%).
+  - Correct-to-wrong length ratio: 1.08 (was 1.69).
+  - Keyword giveaway: 8.9%.
+- **PBQs:** 62 exam-style PBQs, including 10 new large simulations (6 points each):
+  - Configuration tasks: switch-port VLAN and trunk setup, VLSM subnet sizing, edge firewall rules, wireless channel and security plan, and DNS record selection.
+  - A network-zone placement task, a `show interfaces` output analysis, and the 7-step troubleshooting methodology in order.
+  - Two 6-step terminal simulations: a Windows PC with the wrong gateway, and a Linux server with broken DNS. The Security+ APIPA and rogue-DNS labs are also on the Network+ track.
+- **10 Network+ practice exams:** each has 86 multiple-choice questions (20/17/16/12/21) plus 4 PBQs (one command-line or subnet-calculation task, two others, one large simulation). No overlap between exams. They appear in the Cold Run exam picker on the Network+ track.
+- **Tests:** practice-forms (27 checks, 2 new for Network+). The cli-lab test validates the 2 new Network+ labs. Full regression: all 10 test files pass.
+
+**Known limits:**
+- About 27% of exam-pool questions in each cert are older items that passed the structural checks but have no written explanation. They fall back to the glossary "Why" text.
+- The new questions are mostly short scenarios. Their stems average 18 words, compared with 27 for Security+ and 36 for Messer.
+
 ### Notes
 - Practice scores are not an official CompTIA prediction. CompTIA's scaled scoring is proprietary.
 - Third-party practice exams (for example, Professor Messer's) are kept out of this app on purpose, so they stay independent readiness checks.
