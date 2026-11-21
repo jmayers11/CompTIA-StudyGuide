@@ -375,6 +375,18 @@ The five-mode CLI trainer is replaced by plain two-sided flashcards (CLI Mastery
 - About 27% of exam-pool questions in each cert are older items that passed the structural checks but have no written explanation. They fall back to the glossary "Why" text.
 - The new questions are mostly short scenarios. Their stems average 18 words, compared with 27 for Security+ and 36 for Messer.
 
+### Command Quiz (multiple choice)
+- **Where:** a new **🎯 Command Quiz** section in CLI Mastery, next to Flashcards and Terminal Lab. It uses the same command deck as the flashcards for the active track (Security+: 85 commands).
+- **Question types:**
+  - **Description → Command:** which command does this?
+  - **Command → Description:** what does this command do?
+  - **Options and flags:** in `netstat -ano`, what does `-o` do?
+  - Choose mixed or one type, 10/20/40 questions or a full pass, and an optional category.
+- **One right answer per question:** wrong options come from the same category or platform first. Commands listed on the card as equivalent syntax or as a similar job are never used as wrong options, and option questions never offer near-identical meanings or the command's other options.
+- **Answering:** select an option, then **Submit Answer** (taps can be changed before submitting). The explanation shows the command, its description and every flag. Results list the missed questions.
+- **Progress:** missed commands are put back into flashcard review, and the last 50 quiz scores are saved.
+- **Tests:** `tests/cmd-quiz.test.js` (new, 16 checks) generates 60 random 40-question quizzes and checks option quality on every question, then runs a full quiz through the UI. Full regression: all 11 test files pass.
+
 ### Notes
 - Practice scores are not an official CompTIA prediction. CompTIA's scaled scoring is proprietary.
 - Third-party practice exams (for example, Professor Messer's) are kept out of this app on purpose, so they stay independent readiness checks.

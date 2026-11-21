@@ -3836,6 +3836,17 @@
   .saved-exam-line{ font-size:13px; color:var(--muted); margin-top:2px; }
   .saved-exam-actions{ display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
   .saved-exam-actions .btn{ min-height:var(--tap); border-radius:999px; text-transform:none; letter-spacing:0; flex:1 1 140px; }
+  .cmdq-card{ border:1px solid var(--border); border-radius:var(--radius-lg); padding:18px 16px; margin-bottom:12px; background:var(--panel); }
+  .cmdq-prompt{ font-size:19px; line-height:1.45; font-weight:600; }
+  .cmdq-prompt code{ font-size:17px; }
+  .cmdq-opts{ display:flex; flex-direction:column; gap:10px; }
+  .cmdq-opt{ clip-path:none !important; border-radius:var(--radius-md); min-height:56px; padding:14px 16px; font-size:16px; line-height:1.4; gap:14px; }
+  .cmdq-opt .opt-letter{ flex:0 0 auto; width:22px; color:var(--muted); font-weight:700; }
+  .cmdq-opt .opt-text{ flex:1 1 auto; min-width:0; overflow-wrap:anywhere; }
+  .cmdq-opt .opt-mark{ order:3; width:22px; height:22px; border-radius:50% !important; border:2px solid var(--muted); }
+  .cmdq-opt.selected .opt-mark{ border-color:var(--accent); background:radial-gradient(circle, var(--accent) 0 45%, transparent 50%); }
+  .cmdq-explain{ margin-top:10px; padding:12px 14px; border:1px solid var(--border); border-radius:var(--radius-md); font-size:15px; line-height:1.5; }
+  #cmdq-submit:disabled{ opacity:.45; cursor:not-allowed; }
   .exam-grid-review-row{ display:flex; justify-content:flex-end; margin:0 10px 12px; }
   .exam-grid-review-row .btn{ min-height:44px; border-radius:999px; text-transform:none; letter-spacing:0; }
   body.m-shell #m-tabctx:empty{ display:none; }
@@ -4489,7 +4500,17 @@
 
     <div id="climastery-panel" style="display:none;">
       <h2 id="cli-mastery-heading">⌨️ Security+ Command-Line Mastery</h2>
-      <div class="cli-actions" style="margin:0 0 10px;"><button type="button" class="btn primary" id="cli-sec-btn-cards">🗂️ Flashcards</button><button type="button" class="btn" id="cli-sec-btn-lab">🧪 Terminal Lab</button></div>
+      <div class="cli-actions" style="margin:0 0 10px;"><button type="button" class="btn primary" id="cli-sec-btn-cards">🗂️ Flashcards</button><button type="button" class="btn" id="cli-sec-btn-quiz">🎯 Command Quiz</button><button type="button" class="btn" id="cli-sec-btn-lab">🧪 Terminal Lab</button></div>
+      <div id="cli-section-quiz" style="display:none;">
+        <div class="qz-pool-info" style="margin-top:0;">Multiple-choice practice on the same commands as the flashcards: pick the command for a description, the description for a command, or what an option does. Missed commands are added to your flashcard review.</div>
+        <div class="cmdc-controls">
+          <label>Questions<select id="cmdq-count"><option value="10">10</option><option value="20" selected>20</option><option value="40">40</option><option value="85">All (one pass)</option></select></label>
+          <label>Type<select id="cmdq-kind"><option value="mixed">Mixed</option><option value="d2c">Description → Command</option><option value="c2d">Command → Description</option><option value="flag">Options and flags</option></select></label>
+          <label>Category<select id="cmdq-cat"><option value="all">All categories</option><option value="win-net">Windows Networking</option><option value="win-sec">Windows Security</option><option value="lin-net">Linux Networking</option><option value="lin-sec">Linux Security and Administration</option><option value="tools">Security Tools</option><option value="net-dev">Network Devices (Cisco IOS)</option></select></label>
+        </div>
+        <div class="cmdc-start-row"><button type="button" class="btn primary" id="cmdq-start">Start Quiz</button></div>
+        <div id="cmdq-area" style="margin-top:14px;"></div>
+      </div>
       <div id="cli-section-lab" style="display:none;">
         <div class="qz-pool-info" style="margin-top:0;">Multi-step troubleshooting scenarios: type commands into a simulated terminal, read the output, and answer what it means. Hints are available here; in exams these appear as terminal PBQs with no hints and one try per step. Nothing you type is executed.</div>
         <div class="cli-controls"><label>Level<select id="lab-level"><option value="all">All levels</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option></select></label></div>
@@ -21093,6 +21114,189 @@
     if(m && (cmdSession.flipped)){ e.preventDefault(); cmdRate(m); }
   });
   /* CMD_CARD_UI_END */
+  /* CMD_QUIZ_START */
+  /* Command Quiz: multiple-choice questions built from the command flashcard deck.
+     Three kinds: 'd2c' (description -> which command), 'c2d' (command -> what it does),
+     'flag' (what an option in a command means). Distractors come from the same category or
+     platform first, never repeat the answer's text, and never use an "equivalent syntax"
+     form of the correct command, so every question has exactly one right answer. */
+  function buildCmdQuiz(cards, opts, rand){
+    rand = rand || Math.random;
+    opts = opts || {};
+    const kinds = opts.kinds && opts.kinds.length ? opts.kinds : ['d2c', 'c2d', 'flag'];
+    const shuffle = a => a.map(x => ({ x, k: rand() })).sort((p, q) => p.k - q.k).map(o => o.x);
+    const pool = cards.filter(c => (!opts.cert || !c.certs || c.certs.includes(opts.cert)) && (!opts.cat || opts.cat === 'all' || c.cat === opts.cat));
+    const all = cards.filter(c => !opts.cert || !c.certs || c.certs.includes(opts.cert));
+    const norm = s => String(s).toLowerCase().replace(/\s+/g, ' ').trim();
+    // any command listed as an alternative (equivalent OR similar job) is excluded as a distractor, both ways,
+    // so a question never offers two commands that could both be defended as right
+    const base = s => norm(s).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+    const equivOf = c => new Set([c.cmd].concat((c.alts || []).map(a => a.cmd).filter(Boolean)).map(base));
+    const related = (c, r) => equivOf(c).has(base(r.cmd)) || equivOf(r).has(base(c.cmd));
+    // prefer similar cards (same category, then same platform) as distractors
+    function rivals(c){
+      const others = all.filter(x => x.id !== c.id);
+      const tier = x => x.cat === c.cat ? 0 : (x.plat === c.plat ? 1 : 2);
+      return shuffle(others).sort((a, b) => tier(a) - tier(b));
+    }
+    function pick(c, getText, correctText){
+      const used = new Set([norm(correctText)]), eq = equivOf(c), out = [];
+      for(const r of rivals(c)){
+        const t = getText(r);
+        if(!t || used.has(norm(t)) || eq.has(base(t)) || related(c, r)) continue;
+        used.add(norm(t)); out.push(t);
+        if(out.length === 3) break;
+      }
+      return out;
+    }
+    // reject distractor meanings that say nearly the same thing as the right one
+    const words = t => new Set(norm(t).replace(/[^a-z0-9 ]/g, ' ').split(' ').filter(w => w.length > 3));
+    const similar = (x, y) => { const a = words(x), b = words(y); if(!a.size || !b.size) return false; let n = 0; a.forEach(w => { if(b.has(w)) n++; }); return n / Math.min(a.size, b.size) >= 0.5; };
+    const flagItems = [];
+    pool.forEach(c => (c.flags || []).forEach(f => { if(/^[-\/+]/.test(f[0]) && f[0].length <= 14) flagItems.push({ c, flag: f[0], meaning: f[1] }); }));
+    const allFlagMeanings = [];
+    all.forEach(c => (c.flags || []).forEach(f => { if(/^[-\/+]/.test(f[0])) allFlagMeanings.push({ c, flag: f[0], meaning: f[1] }); }));
+    const qs = [];
+    const want = Math.max(1, Math.min(opts.count || 20, 200));
+    const order = shuffle(pool);
+    let i = 0, guard = 0;
+    while(qs.length < want && guard < want * 6 && (order.length || flagItems.length)){
+      guard++;
+      const kind = kinds[qs.length % kinds.length];
+      if(kind === 'flag'){
+        if(!flagItems.length) continue;
+        const fi = flagItems[Math.floor(rand() * flagItems.length)];
+        if(qs.some(q => q.kind === 'flag' && q.cardId === fi.c.id && q.flag === fi.flag)) continue;
+        const ownFlags = new Set((fi.c.flags || []).map(f => norm(f[1])));
+        const used = new Set([norm(fi.meaning)]);
+        const ds = [];
+        for(const m of shuffle(allFlagMeanings)){
+          if(used.has(norm(m.meaning)) || ownFlags.has(norm(m.meaning)) || norm(m.flag) === norm(fi.flag) || similar(m.meaning, fi.meaning)) continue;
+          used.add(norm(m.meaning)); ds.push(m.meaning); if(ds.length === 3) break;
+        }
+        if(ds.length < 3) continue;
+        const options = shuffle([fi.meaning].concat(ds));
+        qs.push({ kind, cardId: fi.c.id, flag: fi.flag, cmd: fi.c.cmd, prompt: `In \`${fi.c.cmd}\`, what does ${fi.flag} do?`, options, answer: fi.meaning });
+        continue;
+      }
+      if(!order.length) break;
+      const c = order[i % order.length]; i++;
+      if(qs.some(q => q.kind === kind && q.cardId === c.id)) { if(i > order.length * 3) break; continue; }
+      if(kind === 'd2c'){
+        const ds = pick(c, r => r.cmd, c.cmd);
+        if(ds.length < 3) continue;
+        qs.push({ kind, cardId: c.id, cmd: c.cmd, prompt: c.desc, options: shuffle([c.cmd].concat(ds)), answer: c.cmd });
+      }else{
+        const ds = pick(c, r => r.desc, c.desc);
+        if(ds.length < 3) continue;
+        qs.push({ kind, cardId: c.id, cmd: c.cmd, prompt: c.cmd, options: shuffle([c.desc].concat(ds)), answer: c.desc });
+      }
+    }
+    return qs;
+  }
+  /* CMD_QUIZ_END */
+  /* CMD_QUIZ_UI_START */
+  let cmdQuiz = null;
+  const CMDQ_KIND_LABEL = { d2c: 'Which command does this?', c2d: 'What does this command do?', flag: 'What does this option do?' };
+  function cmdQuizOpts(){
+    const v = id => (document.getElementById(id) || {}).value;
+    const k = v('cmdq-kind') || 'mixed';
+    return { cert: cmdTrackCert(), cat: v('cmdq-cat') || 'all', count: parseInt(v('cmdq-count'), 10) || 20,
+      kinds: k === 'mixed' ? ['d2c', 'c2d', 'flag'] : [k] };
+  }
+  function renderCmdQuizIdle(msg){
+    const area = document.getElementById('cmdq-area');
+    if(!area) return;
+    const hist = cmdCards.pref('quizHistory') || [];
+    const last = hist.slice(-5).reverse();
+    area.innerHTML = `${msg ? `<div class="cli-idle-msg">${msg}</div>` : ''}
+      <div class="qz-pool-info" style="margin-top:0;">${last.length ? 'Recent quizzes: ' + last.map(h => `${h.score}/${h.total}`).join(' · ') : 'No command quizzes taken yet.'}</div>`;
+  }
+  function startCmdQuiz(){
+    const o = cmdQuizOpts();
+    const qs = buildCmdQuiz(CMD_CARDS, o);
+    if(!qs.length){ renderCmdQuizIdle('No questions available for these settings.'); return; }
+    cmdQuiz = { qs, idx: 0, sel: null, answered: false, score: 0, log: [] };
+    renderCmdQuizQ();
+  }
+  function cmdqOptHtml(q, opt, i){
+    const isCode = q.kind === 'd2c';
+    const chosen = cmdQuiz.sel === opt, done = cmdQuiz.answered;
+    let cls = 'exam-option-btn cmdq-opt';
+    if(done && opt === q.answer) cls += ' fb-correct'; else if(done && chosen) cls += ' fb-incorrect'; else if(chosen) cls += ' selected';
+    return `<button type="button" class="${cls}" data-i="${i}" role="radio" aria-checked="${chosen ? 'true' : 'false'}" ${done ? 'disabled' : ''}><span class="opt-letter">${String.fromCharCode(65 + i)}.</span><span class="opt-text">${isCode ? `<code>${escapeHtml(opt)}</code>` : escapeHtml(opt)}</span><span class="opt-mark" aria-hidden="true"></span></button>`;
+  }
+  function renderCmdQuizQ(){
+    const area = document.getElementById('cmdq-area');
+    if(!cmdQuiz || !area) return;
+    const Q = cmdQuiz;
+    if(Q.idx >= Q.qs.length){ finishCmdQuiz(); return; }
+    const q = Q.qs[Q.idx], card = CMD_CARDS.find(c => c.id === q.cardId);
+    const promptHtml = q.kind === 'd2c' ? `<div class="cmdq-prompt">${escapeHtml(q.prompt)}</div>`
+      : q.kind === 'c2d' ? `<div class="cmdc-cmd${q.prompt.length > 22 ? ' cmdc-cmd-long' : ''}">${escapeHtml(q.prompt)}</div>`
+      : `<div class="cmdq-prompt">In <code>${escapeHtml(q.cmd)}</code>, what does <code>${escapeHtml(q.flag)}</code> do?</div>`;
+    const fb = Q.answered ? `<div class="cli-verdict ${Q.sel === q.answer ? 'cli-ok' : 'cli-bad'}">${Q.sel === q.answer ? '✓ Correct' : '✗ Not quite'}</div>
+      <div class="cmdq-explain"><div><code>${escapeHtml(card.cmd)}</code>: ${escapeHtml(card.desc)}</div>
+      ${(card.flags || []).length ? `<ul class="cmdc-flags">${card.flags.map(f => `<li><code>${escapeHtml(f[0])}</code> = ${escapeHtml(f[1])}</li>`).join('')}</ul>` : ''}
+      ${card.about ? `<div class="cmdc-about">${escapeHtml(card.about)}</div>` : ''}</div>` : '';
+    area.innerHTML = `<div class="cmdc-wrap">
+      <div class="cmdc-head"><span>Question ${Q.idx + 1} of ${Q.qs.length}</span><span>Score ${Q.score}</span>${cmdPlatTag(card.plat)}</div>
+      <div class="cmdq-card"><div class="cmdc-label">${CMDQ_KIND_LABEL[q.kind]}</div>${promptHtml}</div>
+      <div class="cmdq-opts" role="radiogroup">${q.options.map((o, i) => cmdqOptHtml(q, o, i)).join('')}</div>
+      ${fb}
+      <div class="cmdc-nav">${Q.answered
+        ? `<button type="button" class="btn primary" id="cmdq-next">${Q.idx + 1 < Q.qs.length ? 'Next Question' : 'See Results'}</button>`
+        : `<button type="button" class="btn" id="cmdq-quit">End Quiz</button><button type="button" class="btn primary" id="cmdq-submit" ${Q.sel === null ? 'disabled' : ''}>Submit Answer</button>`}</div></div>`;
+    area.querySelectorAll('.cmdq-opt').forEach(b => b.addEventListener('click', () => { if(Q.answered) return; Q.sel = q.options[+b.getAttribute('data-i')]; renderCmdQuizQ(); }));
+    const sub = document.getElementById('cmdq-submit');
+    if(sub) sub.addEventListener('click', () => cmdQuizSubmit());
+    const nx = document.getElementById('cmdq-next');
+    if(nx) nx.addEventListener('click', () => { Q.idx++; Q.sel = null; Q.answered = false; renderCmdQuizQ(); });
+    const qt = document.getElementById('cmdq-quit');
+    if(qt) qt.addEventListener('click', () => { if(confirm('End this quiz now? Answers so far will be scored.')) finishCmdQuiz(); });
+  }
+  function cmdQuizSubmit(){
+    const Q = cmdQuiz;
+    if(!Q || Q.answered || Q.sel === null) return;
+    const q = Q.qs[Q.idx], ok = Q.sel === q.answer;
+    Q.answered = true;
+    if(ok) Q.score++;
+    Q.log.push({ q, chosen: Q.sel, ok });
+    renderCmdQuizQ();
+  }
+  function finishCmdQuiz(){
+    const Q = cmdQuiz;
+    if(!Q) return;
+    cmdQuiz = null;
+    const total = Q.log.length;
+    const missed = Q.log.filter(l => !l.ok);
+    // missed commands go back into flashcard review
+    const missedIds = [...new Set(missed.map(l => l.q.cardId))];
+    missedIds.forEach(id => { try{ cmdCards.rate(id, 'missed'); }catch(e){} });
+    if(total){
+      const hist = (cmdCards.pref('quizHistory') || []).concat([{ ts: Date.now(), score: Q.score, total, cert: cmdTrackCert() }]).slice(-50);
+      cmdCards.pref('quizHistory', hist);
+    }
+    renderCmdSummary();
+    const area = document.getElementById('cmdq-area');
+    if(!area) return;
+    const pct = total ? Math.round(Q.score / total * 100) : 0;
+    area.innerHTML = `<div class="cmdc-wrap"><h3 style="margin-top:0;">Quiz complete: ${Q.score} / ${total} (${pct}%)</h3>
+      ${missed.length ? `<div class="qz-pool-info" style="margin-top:0;">${missedIds.length} missed command${missedIds.length === 1 ? ' was' : 's were'} added to your flashcard review.</div>
+      <div class="qz-review-list">${missed.map((l, i) => `<div class="qz-review-item qz-review-incorrect">
+        <div class="qz-review-q">${i + 1}. ${escapeHtml(l.q.kind === 'flag' ? `In ${l.q.cmd}, what does ${l.q.flag} do?` : l.q.prompt)}</div>
+        <div class="qz-review-a">Your answer: ${escapeHtml(l.chosen)}</div>
+        <div class="qz-review-correct-a">Correct answer: ${escapeHtml(l.q.answer)}</div></div>`).join('')}</div>` : '<div class="qz-pool-info">Perfect score. Nothing missed.</div>'}
+      <div class="cmdc-start-row"><button type="button" class="btn primary" id="cmdq-again">New Quiz</button><button type="button" class="btn" id="cmdq-cards">Go to Flashcards</button></div></div>`;
+    document.getElementById('cmdq-again').addEventListener('click', startCmdQuiz);
+    document.getElementById('cmdq-cards').addEventListener('click', () => showCliSection('cards'));
+  }
+  (function initCmdQuiz(){
+    const b = document.getElementById('cmdq-start'); if(b) b.addEventListener('click', startCmdQuiz);
+    const s = document.getElementById('cli-sec-btn-quiz'); if(s) s.addEventListener('click', () => showCliSection('quiz'));
+    renderCmdQuizIdle();
+  })();
+  /* CMD_QUIZ_UI_END */
 
   /* ---------- Terminal Lab (practice UI inside the CLI Mastery tab) ---------- */
   const CLI_LAB_KEY = 'cybersec_cli_lab_v1';
@@ -21106,12 +21310,17 @@
   const LAB_LEVEL_LABEL = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced' };
   function labPrompt(lab){ return lab.plat === 'windows' ? 'C:\\>' : '$'; }
   function showCliSection(which){
-    ['cards', 'lab'].forEach(k => {
+    ['cards', 'quiz', 'lab'].forEach(k => {
       const sec = document.getElementById('cli-section-' + k), btn = document.getElementById('cli-sec-btn-' + k);
       if(sec) sec.style.display = k === which ? 'block' : 'none';
       if(btn) btn.classList.toggle('primary', k === which);
     });
     if(which === 'lab') renderLabList();
+    if(which === 'quiz' && !cmdQuiz){
+      const ck = cmdTrackCert(), sel = document.getElementById('cmdq-cat');
+      if(sel) [...sel.options].forEach(o => { if(o.value !== 'all') o.hidden = o.disabled = !CMD_CARDS.some(c => c.cat === o.value && (!c.certs || c.certs.includes(ck))); });
+      renderCmdQuizIdle();
+    }
   }
   function renderLabList(){
     const el = document.getElementById('lab-list');
