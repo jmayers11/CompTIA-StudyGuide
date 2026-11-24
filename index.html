@@ -3847,6 +3847,9 @@
   .cmdq-opt.selected .opt-mark{ border-color:var(--accent); background:radial-gradient(circle, var(--accent) 0 45%, transparent 50%); }
   .cmdq-explain{ margin-top:10px; padding:12px 14px; border:1px solid var(--border); border-radius:var(--radius-md); font-size:15px; line-height:1.5; }
   #cmdq-submit:disabled{ opacity:.45; cursor:not-allowed; }
+  .pq-big{ font-family:ui-monospace, Menlo, Consolas, monospace; font-size:34px; font-weight:800; color:var(--accent); margin:2px 0 8px; }
+  .pq-name{ font-size:11.5px; color:var(--muted); }
+  .pq-note{ font-size:12px; color:var(--muted); }
   .exam-grid-review-row{ display:flex; justify-content:flex-end; margin:0 10px 12px; }
   .exam-grid-review-row .btn{ min-height:44px; border-radius:999px; text-transform:none; letter-spacing:0; }
   body.m-shell #m-tabctx:empty{ display:none; }
@@ -3967,6 +3970,7 @@
         <button class="tab-btn" data-tab="notes" title="Browse, search, and edit your study notes by module and tag">📝 Notes</button>
         <button class="tab-btn" data-tab="flashcards" title="Spaced-repetition flashcards — rate each card so due-for-review timing adapts to you">🗂️ Flashcards</button>
         <button class="tab-btn" data-tab="climastery" title="Security+ command flashcards (tap to flip, spaced repetition) and a separate multi-step Terminal Lab">⌨️ CLI Mastery</button>
+        <button class="tab-btn" data-tab="ports" title="Memorize common port numbers: quiz and reference table">🔌 Ports</button>
         <button class="tab-btn" data-tab="planner" title="Enter your exam date and this builds a day-by-day study schedule weighted toward your weakest domains">🗓️ Study Planner</button>
       </div>
       <div class="tab-group-label">Practice</div>
@@ -4030,6 +4034,9 @@
   <div id="readiness-tab" style="display:none;">
     <div class="qz-pool-info" style="margin-top:14px;">How ready you look, judged mainly by questions you had never seen before. All scores here are unofficial practice estimates.</div>
     <button id="readiness-refresh-btn" class="btn" style="width:100%; margin-top:14px;">🔄 Refresh</button>
+  </div>
+  <div id="ports-tab" style="display:none;">
+    <div class="qz-pool-info" style="margin-top:14px;">Memorize which port each protocol uses, whether it runs over TCP or UDP, and the secure replacements. Missed ports come back first.</div>
   </div>
   <div id="climastery-tab" style="display:none;">
     <div class="qz-pool-info" style="margin-top:14px;">Memorize the commands Security+ expects: read what a command does, recall it, tap the card to flip, then rate yourself.</div>
@@ -4496,6 +4503,19 @@
 
     <div id="readiness-panel" style="display:none;">
       <div id="readiness-content"></div>
+    </div>
+
+    <div id="ports-panel" style="display:none;">
+      <h2>🔌 Ports Quiz</h2>
+      <div class="qz-pool-info" style="margin-top:0;">Practice the port numbers and protocols that Security+ and Network+ expect. Select an answer, then Submit Answer to see the explanation.</div>
+      <div class="cmdc-controls">
+        <label>Questions<select id="pq-count"><option value="10">10</option><option value="20" selected>20</option><option value="40">40</option></select></label>
+        <label>Type<select id="pq-kind"><option value="mixed">Mixed</option><option value="p2s">Port → Service</option><option value="s2p">Service → Port</option><option value="secure">Secure replacements</option><option value="transport">TCP or UDP</option></select></label>
+        <label>Ports<select id="pq-set"><option value="core" selected>Exam core (29)</option><option value="all">All (40, includes extras)</option></select></label>
+      </div>
+      <div class="cmdc-start-row"><button type="button" class="btn primary" id="pq-start">Start Quiz</button></div>
+      <div id="pq-area" style="margin-top:14px;"></div>
+      <details class="exposure-details" open><summary>📖 Port reference</summary><input type="text" id="pq-filter" placeholder="Filter, e.g. 443 or mail" aria-label="Filter ports" style="width:100%; margin:6px 0 10px;"><div id="pq-table"></div></details>
     </div>
 
     <div id="climastery-panel" style="display:none;">
@@ -20531,7 +20551,7 @@
      top bar, so content starts at the top of the screen. A tab's own sidebar controls (the notes
      list, the planner form, cram options) are moved, with their listeners intact, into a box at
      the top of the main area while that tab is open, and moved back on wider screens. */
-  const M_TAB_NAMES = { home: 'Home', notes: 'Notes', flashcards: 'Flashcards', climastery: 'CLI Mastery', planner: 'Study Planner',
+  const M_TAB_NAMES = { home: 'Home', notes: 'Notes', flashcards: 'Flashcards', climastery: 'CLI Mastery', ports: 'Ports', planner: 'Study Planner',
     quizzes: 'Quizzes', exam: 'Exam Mode', reconops: 'Recon Ops', jobsim: 'Job Sim', careerprep: 'Career Prep', cram: 'Cram Sheet',
     dashboard: 'Dashboard', readiness: 'Readiness' };
   const M_MOVE_SECTIONS = { notes: 'notes-tab', planner: 'planner-tab', cram: 'cram-tab' };
@@ -20685,6 +20705,7 @@
     document.getElementById('planner-tab').style.display = tab === 'planner' ? 'block' : 'none';
     document.getElementById('climastery-tab').style.display = tab === 'climastery' ? 'block' : 'none';
     document.getElementById('readiness-tab').style.display = tab === 'readiness' ? 'block' : 'none';
+    document.getElementById('ports-tab').style.display = tab === 'ports' ? 'block' : 'none';
 
     document.getElementById('home-panel').style.display = 'none';
     document.getElementById('notes-toolbar').style.display = 'none';
@@ -20702,6 +20723,7 @@
     document.getElementById('planner-panel').style.display = 'none';
     document.getElementById('climastery-panel').style.display = 'none';
     document.getElementById('readiness-panel').style.display = 'none';
+    document.getElementById('ports-panel').style.display = 'none';
     if(tab !== 'jobsim' && typeof jobSimActiveTimer !== 'undefined' && jobSimActiveTimer){ clearInterval(jobSimActiveTimer); jobSimActiveTimer = null; }
 
     const focusBtn = document.getElementById('focus-mode-btn');
@@ -20751,6 +20773,9 @@
     }else if(tab === 'readiness'){
       document.getElementById('readiness-panel').style.display = 'block';
       renderReadiness();
+    }else if(tab === 'ports'){
+      document.getElementById('ports-panel').style.display = 'block';
+      renderPorts();
     }else if(tab === 'planner'){
       document.getElementById('planner-panel').style.display = 'block';
       renderStudyPlanner();
@@ -21297,6 +21322,214 @@
     renderCmdQuizIdle();
   })();
   /* CMD_QUIZ_UI_END */
+  /* PORTS_START */
+  /* Common ports for Security+ (SY0-701) and Network+ (N10-009). core = listed or routinely tested;
+     extra = useful but less common. ports = list of numbers (ranges written out as strings).
+     secureOf = the insecure protocol this one replaces. */
+  const PORTS = [
+    { id:'ftp', proto:'FTP', name:'File Transfer Protocol', ports:['20','21'], transport:'TCP', core:true, note:'21 = control, 20 = data (active mode). Sends credentials in cleartext.' },
+    { id:'ssh', proto:'SSH', name:'Secure Shell', ports:['22'], transport:'TCP', core:true, secureOf:'Telnet', note:'Encrypted remote command line. SFTP and SCP run over SSH on the same port.' },
+    { id:'sftp', proto:'SFTP', name:'SSH File Transfer Protocol', ports:['22'], transport:'TCP', core:true, secureOf:'FTP', note:'File transfer over an SSH session.' },
+    { id:'scp', proto:'SCP', name:'Secure Copy Protocol', ports:['22'], transport:'TCP', core:false, secureOf:'FTP', note:'File copy over SSH.' },
+    { id:'telnet', proto:'Telnet', name:'Telnet', ports:['23'], transport:'TCP', core:true, note:'Cleartext remote terminal. Replace with SSH.' },
+    { id:'smtp', proto:'SMTP', name:'Simple Mail Transfer Protocol', ports:['25'], transport:'TCP', core:true, note:'Server-to-server mail relay.' },
+    { id:'tacacs', proto:'TACACS+', name:'Terminal Access Controller Access-Control System Plus', ports:['49'], transport:'TCP', core:true, note:'Cisco AAA for device administration. Encrypts the whole payload.' },
+    { id:'dns', proto:'DNS', name:'Domain Name System', ports:['53'], transport:'TCP and UDP', core:true, note:'UDP for most queries; TCP for zone transfers and large responses.' },
+    { id:'dhcp', proto:'DHCP', name:'Dynamic Host Configuration Protocol', ports:['67','68'], transport:'UDP', core:true, note:'67 = server, 68 = client.' },
+    { id:'tftp', proto:'TFTP', name:'Trivial File Transfer Protocol', ports:['69'], transport:'UDP', core:true, note:'No authentication. Used for firmware and config files on network devices.' },
+    { id:'http', proto:'HTTP', name:'Hypertext Transfer Protocol', ports:['80'], transport:'TCP', core:true, note:'Unencrypted web traffic.' },
+    { id:'kerberos', proto:'Kerberos', name:'Kerberos authentication', ports:['88'], transport:'TCP and UDP', core:true, note:'Ticket-based authentication used by Active Directory.' },
+    { id:'pop3', proto:'POP3', name:'Post Office Protocol v3', ports:['110'], transport:'TCP', core:true, note:'Downloads mail to the client. Cleartext.' },
+    { id:'ntp', proto:'NTP', name:'Network Time Protocol', ports:['123'], transport:'UDP', core:true, note:'Clock synchronization, important for logs and Kerberos.' },
+    { id:'netbios', proto:'NetBIOS', name:'NetBIOS name, datagram and session services', ports:['137','138','139'], transport:'TCP and UDP', core:false, note:'137 UDP name, 138 UDP datagram, 139 TCP session. Legacy Windows networking.' },
+    { id:'imap', proto:'IMAP', name:'Internet Message Access Protocol', ports:['143'], transport:'TCP', core:true, note:'Keeps mail on the server. Cleartext.' },
+    { id:'snmp', proto:'SNMP', name:'Simple Network Management Protocol', ports:['161','162'], transport:'UDP', core:true, note:'161 = agent queries, 162 = traps. Use SNMPv3 for authentication and encryption (same ports).' },
+    { id:'bgp', proto:'BGP', name:'Border Gateway Protocol', ports:['179'], transport:'TCP', core:false, note:'Internet routing between autonomous systems.' },
+    { id:'ldap', proto:'LDAP', name:'Lightweight Directory Access Protocol', ports:['389'], transport:'TCP and UDP', core:true, note:'Directory queries, cleartext unless upgraded with StartTLS.' },
+    { id:'https', proto:'HTTPS', name:'HTTP over TLS', ports:['443'], transport:'TCP', core:true, secureOf:'HTTP', note:'Encrypted web traffic. (HTTP/3 uses UDP 443.)' },
+    { id:'smb', proto:'SMB', name:'Server Message Block', ports:['445'], transport:'TCP', core:true, note:'Windows file and printer sharing.' },
+    { id:'ike', proto:'IKE (IPsec)', name:'Internet Key Exchange / ISAKMP', ports:['500'], transport:'UDP', core:true, note:'Negotiates IPsec VPN security associations.' },
+    { id:'syslog', proto:'Syslog', name:'Syslog', ports:['514'], transport:'UDP', core:true, note:'Sends log messages to a collector.' },
+    { id:'smtps', proto:'SMTPS', name:'SMTP with TLS (mail submission)', ports:['587'], transport:'TCP', core:true, secureOf:'SMTP', note:'CompTIA lists SMTPS on 587 (submission with STARTTLS). 465 is also used for implicit-TLS SMTP.' },
+    { id:'ldaps', proto:'LDAPS', name:'LDAP over TLS', ports:['636'], transport:'TCP', core:true, secureOf:'LDAP', note:'Encrypted directory queries.' },
+    { id:'dot', proto:'DNS over TLS', name:'DNS over TLS (DoT)', ports:['853'], transport:'TCP', core:false, secureOf:'DNS', note:'Encrypts DNS queries. DNS over HTTPS (DoH) uses 443.' },
+    { id:'ftps', proto:'FTPS', name:'FTP over TLS', ports:['989','990'], transport:'TCP', core:true, secureOf:'FTP', note:'FTP secured with TLS (implicit mode).' },
+    { id:'imaps', proto:'IMAPS', name:'IMAP over TLS', ports:['993'], transport:'TCP', core:true, secureOf:'IMAP', note:'Encrypted IMAP.' },
+    { id:'pop3s', proto:'POP3S', name:'POP3 over TLS', ports:['995'], transport:'TCP', core:true, secureOf:'POP3', note:'Encrypted POP3.' },
+    { id:'mssql', proto:'Microsoft SQL Server', name:'Microsoft SQL Server', ports:['1433'], transport:'TCP', core:true, note:'Default SQL Server port.' },
+    { id:'oracle', proto:'Oracle DB', name:'Oracle database listener', ports:['1521'], transport:'TCP', core:false, note:'Default Oracle listener port.' },
+    { id:'l2tp', proto:'L2TP', name:'Layer 2 Tunneling Protocol', ports:['1701'], transport:'UDP', core:false, note:'VPN tunneling, usually paired with IPsec for encryption.' },
+    { id:'pptp', proto:'PPTP', name:'Point-to-Point Tunneling Protocol', ports:['1723'], transport:'TCP', core:false, note:'Old, insecure VPN protocol.' },
+    { id:'radius', proto:'RADIUS', name:'Remote Authentication Dial-In User Service', ports:['1812','1813'], transport:'UDP', core:true, note:'1812 = authentication, 1813 = accounting. Used for 802.1X and VPN logins.' },
+    { id:'mysql', proto:'MySQL', name:'MySQL database', ports:['3306'], transport:'TCP', core:false, note:'Default MySQL/MariaDB port.' },
+    { id:'rdp', proto:'RDP', name:'Remote Desktop Protocol', ports:['3389'], transport:'TCP', core:true, note:'Windows remote desktop (can also use UDP 3389).' },
+    { id:'natt', proto:'IPsec NAT-T', name:'IPsec NAT traversal', ports:['4500'], transport:'UDP', core:false, note:'Carries IPsec through NAT devices.' },
+    { id:'sip', proto:'SIP', name:'Session Initiation Protocol', ports:['5060','5061'], transport:'TCP and UDP', core:true, note:'VoIP call setup. 5061 = SIP over TLS.' },
+    { id:'vnc', proto:'VNC', name:'Virtual Network Computing', ports:['5900'], transport:'TCP', core:false, note:'Remote desktop sharing.' },
+    { id:'syslogtls', proto:'Syslog over TLS', name:'Syslog over TLS', ports:['6514'], transport:'TCP', core:false, secureOf:'Syslog', note:'Encrypted, reliable log delivery.' }
+  ];
+  function portLabel(p){ return p.ports.length === 3 && +p.ports[2] - +p.ports[0] === 2 ? `${p.ports[0]}–${p.ports[2]}` : p.ports.join(', '); }
+  /* Builds a multiple-choice ports quiz. Kinds: 'p2s' port -> service, 's2p' service -> port,
+     'secure' secure replacement, 'transport' TCP/UDP. Distractors never share a port with the
+     answer (so port 22 never offers SSH and SFTP together). weights: {id: misses} favors missed items. */
+  function buildPortsQuiz(list, opts, rand){
+    rand = rand || Math.random; opts = opts || {};
+    const kinds = opts.kinds && opts.kinds.length ? opts.kinds : ['p2s', 's2p', 'secure', 'transport'];
+    const shuffle = a => a.map(x => ({ x, k: rand() })).sort((p, q) => p.k - q.k).map(o => o.x);
+    const pool = list.filter(p => opts.set === 'all' || p.core);
+    const all = list;
+    const w = opts.weights || {};
+    const overlap = (a, b) => a.ports.some(x => b.ports.includes(x));
+    const byProto = {}; all.forEach(p => { byProto[p.proto] = p; });
+    const insecure = [...new Set(all.filter(p => p.secureOf).map(p => p.secureOf))].filter(n => byProto[n] && pool.some(p => p.proto === n || p.secureOf === n));
+    // order: missed items first (weighted), then the rest shuffled
+    const ordered = shuffle(pool).sort((a, b) => (w[b.id] || 0) - (w[a.id] || 0));
+    const want = Math.max(1, Math.min(opts.count || 20, 200));
+    const qs = []; let i = 0, guard = 0;
+    const live = kinds.slice(), fails = {};
+    let kp = 0;
+    while(qs.length < want && guard < want * 12 && live.length){
+      guard++;
+      const kind = live[kp % live.length];
+      const before = qs.length;
+      // a kind that keeps failing (e.g. every secure pair already asked) is dropped so the quiz can fill up
+      const tick = () => { if(qs.length > before){ kp++; fails[kind] = 0; } else if((fails[kind] = (fails[kind] || 0) + 1) > 25){ live.splice(live.indexOf(kind), 1); } };
+      do {
+      if(kind === 'secure'){
+        if(!insecure.length) break;
+        const name = insecure[Math.floor(rand() * insecure.length)];
+        const goods = all.filter(p => p.secureOf === name && (opts.set === 'all' || p.core));
+        if(!goods.length) break;
+        const ans = goods[Math.floor(rand() * goods.length)];
+        if(qs.some(q => q.kind === 'secure' && q.about === name && q.answer === `${ans.proto} (${portLabel(ans)})`)) break;
+        const ds = shuffle(all.filter(p => p.secureOf && p.secureOf !== name && !goods.includes(p)))
+          .map(p => `${p.proto} (${portLabel(p)})`).filter((t, k, arr) => arr.indexOf(t) === k).slice(0, 2);
+        const insecureOpt = `${byProto[name].proto} (${portLabel(byProto[name])})`;
+        const options = shuffle([`${ans.proto} (${portLabel(ans)})`, insecureOpt].concat(ds));
+        qs.push({ kind, id: ans.id, about: name, prompt: `Which protocol and port is a secure replacement for ${name}?`, options, answer: `${ans.proto} (${portLabel(ans)})` });
+        break;
+      }
+      const p = ordered[i % ordered.length]; i++;
+      if(qs.some(q => q.kind === kind && q.id === p.id)){ if(i > ordered.length * 4) break; break; }
+      if(kind === 'transport'){
+        qs.push({ kind, id: p.id, prompt: `Which transport protocol does ${p.proto} use?`, options: ['TCP', 'UDP', 'TCP and UDP'], answer: p.transport });
+        break;
+      }
+      const rivals = shuffle(all.filter(r => r.id !== p.id && !overlap(r, p)));
+      const near = rivals.sort((a, b) => Math.abs(+a.ports[0] - +p.ports[0]) - Math.abs(+b.ports[0] - +p.ports[0]));
+      const pickFrom = shuffle(near.slice(0, 8));
+      if(kind === 'p2s'){
+        const port = p.ports[Math.floor(rand() * p.ports.length)];
+        // every other entry that also uses this exact port would be a second right answer, so skip them
+        const ds = pickFrom.filter(r => !r.ports.includes(port)).map(r => r.proto).filter((t, k, arr) => arr.indexOf(t) === k).slice(0, 3);
+        if(ds.length < 3) break;
+        const sharing = all.filter(r => r.ports.includes(port) && r.id !== p.id);
+        if(sharing.some(r => ds.includes(r.proto))) break;
+        qs.push({ kind, id: p.id, port, prompt: `Which service uses port ${port}?`, options: shuffle([p.proto].concat(ds)), answer: p.proto });
+      }else{
+        const ans = portLabel(p);
+        const ds = pickFrom.map(r => portLabel(r)).filter((t, k, arr) => t !== ans && arr.indexOf(t) === k).slice(0, 3);
+        if(ds.length < 3) break;
+        qs.push({ kind, id: p.id, prompt: `Which port${p.ports.length > 1 ? 's does' : ' does'} ${p.proto} use?`, options: shuffle([ans].concat(ds)), answer: ans });
+      }
+      } while(false);
+      tick();
+    }
+    return qs;
+  }
+  /* PORTS_END */
+  /* PORTS_UI_START */
+  const PORTS_KEY = 'cybersec_ports_v1';
+  let portsData = { miss: {}, hist: [] };
+  try{ const r = JSON.parse(localStorage.getItem(PORTS_KEY)); if(r && typeof r === 'object'){ portsData.miss = r.miss || {}; portsData.hist = r.hist || []; } }catch(e){}
+  function savePorts(){ lsSet(PORTS_KEY, JSON.stringify(portsData)); }
+  let portsQuiz = null;
+  const PQ_LABEL = { p2s: 'Which service uses this port?', s2p: 'Which port does it use?', secure: 'Secure replacement', transport: 'TCP or UDP?' };
+  function portsOpts(){
+    const v = id => (document.getElementById(id) || {}).value;
+    const k = v('pq-kind') || 'mixed';
+    return { set: v('pq-set') || 'core', count: parseInt(v('pq-count'), 10) || 20, kinds: k === 'mixed' ? ['p2s', 's2p', 'secure', 'transport'] : [k], weights: portsData.miss };
+  }
+  function renderPortsIdle(msg){
+    const area = document.getElementById('pq-area'); if(!area) return;
+    const last = portsData.hist.slice(-5).reverse();
+    const weak = Object.keys(portsData.miss).filter(id => portsData.miss[id] > 0).map(id => PORTS.find(p => p.id === id)).filter(Boolean)
+      .sort((a, b) => portsData.miss[b.id] - portsData.miss[a.id]).slice(0, 8);
+    area.innerHTML = `${msg ? `<div class="cli-idle-msg">${msg}</div>` : ''}
+      <div class="qz-pool-info" style="margin-top:0;">${last.length ? 'Recent quizzes: ' + last.map(h => `${h.score}/${h.total}`).join(' · ') : 'No ports quizzes taken yet.'}</div>
+      ${weak.length ? `<div class="qz-pool-info">Ports to review (asked first next time): ${weak.map(p => `<strong>${escapeHtml(p.proto)}</strong> ${escapeHtml(portLabel(p))}`).join(' · ')}</div>` : ''}`;
+  }
+  function renderPortsTable(){
+    const el = document.getElementById('pq-table'); if(!el) return;
+    const f = ((document.getElementById('pq-filter') || {}).value || '').toLowerCase().trim();
+    const rows = PORTS.slice().sort((a, b) => +a.ports[0] - +b.ports[0])
+      .filter(p => !f || (p.proto + ' ' + p.name + ' ' + p.ports.join(' ') + ' ' + p.transport).toLowerCase().includes(f));
+    el.innerHTML = `<div class="exposure-table-wrap"><table class="exposure-table pq-table"><thead><tr><th>Port</th><th>Protocol</th><th>TCP/UDP</th><th>Notes</th></tr></thead><tbody>${
+      rows.map(p => `<tr><td><strong>${escapeHtml(portLabel(p))}</strong></td><td>${escapeHtml(p.proto)}${p.core ? '' : ' <span class="cli-supp-tag">extra</span>'}<div class="pq-name">${escapeHtml(p.name)}</div></td><td>${escapeHtml(p.transport)}</td><td class="pq-note">${p.secureOf ? `Secure replacement for ${escapeHtml(p.secureOf)}. ` : ''}${escapeHtml(p.note)}</td></tr>`).join('')}</tbody></table></div>`;
+  }
+  function renderPorts(){ renderPortsTable(); if(!portsQuiz) renderPortsIdle(); else renderPortsQ(); }
+  function startPortsQuiz(){
+    const qs = buildPortsQuiz(PORTS, portsOpts());
+    if(!qs.length){ renderPortsIdle('No questions for these settings.'); return; }
+    portsQuiz = { qs, idx: 0, sel: null, answered: false, score: 0, log: [] };
+    renderPortsQ();
+  }
+  function renderPortsQ(){
+    const area = document.getElementById('pq-area'), Q = portsQuiz;
+    if(!Q || !area) return;
+    if(Q.idx >= Q.qs.length){ finishPortsQuiz(); return; }
+    const q = Q.qs[Q.idx], p = PORTS.find(x => x.id === q.id);
+    const big = q.kind === 'p2s' ? `<div class="pq-big">${escapeHtml(q.port)}</div>` : q.kind === 's2p' || q.kind === 'transport' ? `<div class="pq-big">${escapeHtml(p.proto)}</div>` : '';
+    const opt = (o, i) => {
+      const chosen = Q.sel === o; let cls = 'exam-option-btn cmdq-opt';
+      if(Q.answered && o === q.answer) cls += ' fb-correct'; else if(Q.answered && chosen) cls += ' fb-incorrect'; else if(chosen) cls += ' selected';
+      return `<button type="button" class="${cls}" data-i="${i}" role="radio" aria-checked="${chosen}" ${Q.answered ? 'disabled' : ''}><span class="opt-letter">${String.fromCharCode(65 + i)}.</span><span class="opt-text">${escapeHtml(o)}</span><span class="opt-mark" aria-hidden="true"></span></button>`;
+    };
+    const fb = Q.answered ? `<div class="cli-verdict ${Q.sel === q.answer ? 'cli-ok' : 'cli-bad'}">${Q.sel === q.answer ? '✓ Correct' : '✗ Not quite'}</div>
+      <div class="cmdq-explain"><strong>${escapeHtml(p.proto)}</strong> (${escapeHtml(p.name)}) uses <strong>${escapeHtml(p.transport)} ${escapeHtml(portLabel(p))}</strong>. ${p.secureOf ? `It is the secure replacement for ${escapeHtml(p.secureOf)}. ` : ''}${escapeHtml(p.note)}</div>` : '';
+    area.innerHTML = `<div class="cmdc-wrap"><div class="cmdc-head"><span>Question ${Q.idx + 1} of ${Q.qs.length}</span><span>Score ${Q.score}</span></div>
+      <div class="cmdq-card"><div class="cmdc-label">${PQ_LABEL[q.kind]}</div>${big}<div class="cmdq-prompt">${escapeHtml(q.prompt)}</div></div>
+      <div class="cmdq-opts" role="radiogroup">${q.options.map(opt).join('')}</div>${fb}
+      <div class="cmdc-nav">${Q.answered ? `<button type="button" class="btn primary" id="pq-next">${Q.idx + 1 < Q.qs.length ? 'Next Question' : 'See Results'}</button>`
+        : `<button type="button" class="btn" id="pq-quit">End Quiz</button><button type="button" class="btn primary" id="pq-submit" ${Q.sel === null ? 'disabled' : ''}>Submit Answer</button>`}</div></div>`;
+    area.querySelectorAll('.cmdq-opt').forEach(b => b.addEventListener('click', () => { if(Q.answered) return; Q.sel = q.options[+b.getAttribute('data-i')]; renderPortsQ(); }));
+    const s = document.getElementById('pq-submit'); if(s) s.addEventListener('click', portsSubmit);
+    const n = document.getElementById('pq-next'); if(n) n.addEventListener('click', () => { Q.idx++; Q.sel = null; Q.answered = false; renderPortsQ(); });
+    const qt = document.getElementById('pq-quit'); if(qt) qt.addEventListener('click', () => { if(confirm('End this quiz now? Answers so far will be scored.')) finishPortsQuiz(); });
+  }
+  function portsSubmit(){
+    const Q = portsQuiz; if(!Q || Q.answered || Q.sel === null) return;
+    const q = Q.qs[Q.idx], ok = Q.sel === q.answer;
+    Q.answered = true; if(ok) Q.score++;
+    Q.log.push({ q, chosen: Q.sel, ok });
+    // misses raise an item's priority; correct answers lower it
+    portsData.miss[q.id] = Math.max(0, (portsData.miss[q.id] || 0) + (ok ? -1 : 2));
+    savePorts();
+    renderPortsQ();
+  }
+  function finishPortsQuiz(){
+    const Q = portsQuiz; if(!Q) return; portsQuiz = null;
+    const total = Q.log.length, missed = Q.log.filter(l => !l.ok);
+    if(total){ portsData.hist = portsData.hist.concat([{ ts: Date.now(), score: Q.score, total }]).slice(-50); savePorts(); }
+    const area = document.getElementById('pq-area'); if(!area) return;
+    area.innerHTML = `<div class="cmdc-wrap"><h3 style="margin-top:0;">Quiz complete: ${Q.score} / ${total} (${total ? Math.round(Q.score / total * 100) : 0}%)</h3>
+      ${missed.length ? `<div class="qz-pool-info" style="margin-top:0;">Missed ports will be asked first in your next quiz.</div><div class="qz-review-list">${missed.map((l, i) => `<div class="qz-review-item qz-review-incorrect"><div class="qz-review-q">${i + 1}. ${escapeHtml(l.q.prompt)}${l.q.port ? ` (${escapeHtml(l.q.port)})` : ''}</div><div class="qz-review-a">Your answer: ${escapeHtml(l.chosen)}</div><div class="qz-review-correct-a">Correct answer: ${escapeHtml(l.q.answer)}</div></div>`).join('')}</div>` : '<div class="qz-pool-info">Perfect score.</div>'}
+      <div class="cmdc-start-row"><button type="button" class="btn primary" id="pq-again">New Quiz</button><button type="button" class="btn" id="pq-review">Review missed only</button></div></div>`;
+    document.getElementById('pq-again').addEventListener('click', startPortsQuiz);
+    document.getElementById('pq-review').addEventListener('click', () => {
+      const ids = [...new Set(missed.map(l => l.q.id))];
+      if(!ids.length){ startPortsQuiz(); return; }
+      const o = portsOpts(); o.set = 'all';
+      const qs = buildPortsQuiz(PORTS.filter(p => ids.includes(p.id)), Object.assign(o, { count: Math.max(ids.length * 2, 6), kinds: ['p2s', 's2p'] }));
+      portsQuiz = qs.length ? { qs, idx: 0, sel: null, answered: false, score: 0, log: [] } : null;
+      if(portsQuiz) renderPortsQ(); else startPortsQuiz();
+    });
+  }
+  (function initPorts(){
+    const b = document.getElementById('pq-start'); if(b) b.addEventListener('click', startPortsQuiz);
+    const f = document.getElementById('pq-filter'); if(f) f.addEventListener('input', renderPortsTable);
+  })();
+  /* PORTS_UI_END */
 
   /* ---------- Terminal Lab (practice UI inside the CLI Mastery tab) ---------- */
   const CLI_LAB_KEY = 'cybersec_cli_lab_v1';
@@ -24670,7 +24903,7 @@
   const BACKUP_KEYS = [
     STORAGE_KEY, TRACK_KEY, MISSED_QUEUE_KEY, PROGRESS_KEY, XP_KEY,
     SOUND_KEY, FC_MASTERY_KEY, BADGE_SEEN_KEY, ACTIVITY_LOG_KEY, THEME_KEY, EXAM_DATE_KEY,
-    EXPOSURE_STORAGE_KEY, EXAM_POLICY_KEY, EXAM_SUPPLEMENTAL_KEY, CLI_MASTERY_KEY, CLI_LAB_KEY, 'cybersec_cmd_cards_v1'
+    EXPOSURE_STORAGE_KEY, EXAM_POLICY_KEY, EXAM_SUPPLEMENTAL_KEY, CLI_MASTERY_KEY, CLI_LAB_KEY, 'cybersec_cmd_cards_v1', 'cybersec_ports_v1'
   ];
 
   function exportBackup(){

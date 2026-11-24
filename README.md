@@ -387,6 +387,23 @@ The five-mode CLI trainer is replaced by plain two-sided flashcards (CLI Mastery
 - **Progress:** missed commands are put back into flashcard review, and the last 50 quiz scores are saved.
 - **Tests:** `tests/cmd-quiz.test.js` (new, 16 checks) generates 60 random 40-question quizzes and checks option quality on every question, then runs a full quiz through the UI. Full regression: all 11 test files pass.
 
+### Ports Quiz
+- **Where:** a new **🔌 Ports** tab in the Study group.
+- **Data:** 40 ports with protocol, full name, TCP/UDP and a short note.
+  - 29 are marked exam core for Security+ and Network+ (for example FTP 20/21, SSH 22, DNS 53, HTTPS 443, SMB 445, LDAPS 636, RDP 3389, RADIUS 1812/1813, SIP 5060/5061).
+  - 11 are extras, such as BGP 179, MySQL 3306 and Syslog over TLS 6514.
+  - SMTPS is listed on 587, as in CompTIA's N10-009 list, with a note that 465 is also used.
+- **Question types:**
+  - **Port → Service**, which never offers two protocols that share the port, so SSH and SFTP never appear together for 22.
+  - **Service → Port**, where wrong options never overlap the right port.
+  - **Secure replacements**, for example the secure replacement for LDAP, with exactly one valid replacement among the options.
+  - **TCP or UDP.**
+  - Choose mixed or one type, 10/20/40 questions, and exam core or all ports.
+- **Answering:** select an option, then **Submit Answer**. The explanation shows the protocol, its port(s), TCP/UDP and notes.
+- **Progress:** missed ports get a higher priority and are asked first next time; correct answers lower it again. A "Review missed only" button runs a quick quiz on just the missed ports. Scores are saved under `cybersec_ports_v1`, which Backup includes.
+- **Port reference** table with a filter box (type `443` or `mail`).
+- **Tests:** `tests/ports-quiz.test.js` (new, 17 checks) checks the data and key ports, runs 80 random 40-question quizzes for one-right-answer rules, checks missed-first ordering, and runs a full quiz through the UI. Full regression: all 12 test files pass.
+
 ### Notes
 - Practice scores are not an official CompTIA prediction. CompTIA's scaled scoring is proprietary.
 - Third-party practice exams (for example, Professor Messer's) are kept out of this app on purpose, so they stay independent readiness checks.
