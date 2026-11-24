@@ -404,6 +404,71 @@ The five-mode CLI trainer is replaced by plain two-sided flashcards (CLI Mastery
 - **Port reference** table with a filter box (type `443` or `mail`).
 - **Tests:** `tests/ports-quiz.test.js` (new, 17 checks) checks the data and key ports, runs 80 random 40-question quizzes for one-right-answer rules, checks missed-first ordering, and runs a full quiz through the UI. Full regression: all 12 test files pass.
 
+### Simulation Commands quiz
+- **Where:** a new **🧩 Simulation Commands** section in CLI Mastery.
+- **Coverage:** every command step from every terminal lab and large simulation, 39 steps in 21 simulations, becomes a multiple-choice question. The list is filtered by track: Security+ has 18 simulations. The large exam simulations are included, so their answers are shown here.
+- **Two ways to practice:**
+  - **Walk through one simulation:** its command steps in order, with the story at step 1.
+  - **Mixed:** steps from all simulations, 10/20/all.
+- **What each question shows:** the step's exact prompt and the output from the previous command, just like in the simulation.
+- **Wrong options:** they come first from the *other* steps of the same simulation, since mixing up step 1 and step 3 is the common mistake, then from other simulations on the same platform. A wrong option is used only if the simulation's own grader would reject it, so each question has one right answer.
+- **After submitting:** you see the right command typed at the prompt, the output it produces, and the step's explanation. Results list missed steps with the correct command, and missed commands also go back into flashcard review when the deck has them.
+- **Tests:** `tests/sim-cmd-quiz.test.js` (new, 14 checks) confirms all 39 steps produce questions, the grader accepts every right answer and rejects every wrong option, and walk-through order, same-simulation wrong options, track filtering and a UI run work. Full regression: all 13 test files pass.
+
+### New Security+ simulations (2026-11-24)
+- **Six new terminal labs**, also used as exam PBQs:
+  - mapping a subnet with `nmap -sn` and `nmap -sV`
+  - certificate warnings with `openssl s_client` and `openssl x509 -text -noout`
+  - verifying a download with `sha256sum`, then `chmod +x`
+  - a GPO that isn't applying, with `gpresult /r` and `gpupdate /force`
+  - security headers with `curl -I`
+  - an unexpected local admin, with `net localgroup administrators`, `net user` and `net user /active:no`
+- The track now has 24 Security+ simulations and 51 command steps across all labs.
+- Existing questions, practice exams and saved progress are unchanged.
+
+### Simulation Command Recognition (replaces the Simulation Commands section)
+- **Where:** **🧩 Sim Command Recognition** in CLI Mastery. It is separate from the Command Quiz.
+- **Question bank:** about 200 multiple-choice questions built from every command, option, file path and output in the simulations.
+- **Question types:**
+  - **Step → command:** full syntax as answers. Wrong options come from other steps of the same simulation, then same-OS simulations, and the simulation's own grader must reject them.
+  - **Command → purpose:** a wrong purpose is always a step the shown command would fail.
+  - **Option meanings:** what `-n`, `/all`, `-text` and so on mean inside the simulation's command. Meanings come from the command deck, and the other options of the same command are preferred as wrong answers.
+  - **Read the output:** every question the simulations ask about their output. Typed answers become multiple choice, with look-alike values from the same output (other PIDs, ports, IPs, accounts).
+  - **File paths:** which file a step uses, plus 18 common security paths such as `/etc/shadow`, `/var/log/auth.log`, `sshd_config`, `authorized_keys`, the Windows hosts file, SAM and Startup.
+- **Practice options:** walk through one simulation in order, or mixed with 10/20/40/full bank. Pick one question type or mixed. **Missed only** reruns what you got wrong last time.
+- **Feedback:** after Submit Answer, you see the command at the prompt with its output, the explanation, and every option of that command with its meaning.
+- **Priority:** missed questions come first, and commands missed in exam simulations get a boost.
+- **Progress:** saved per question under `cybersec_simrec_v1` and included in Backup/Restore. Old quiz history is carried over.
+
+### Attack Recognition (new 🛡️ Attacks tab)
+- **Attacks covered:** 41 commonly confused SY0-701 attacks:
+  - XSS (stored, reflected and DOM), SQLi, CSRF, SSRF, directory traversal and command injection
+  - buffer overflow, race condition/TOCTOU and privilege escalation
+  - replay, on-path, ARP poisoning, DNS poisoning and session hijacking
+  - password spraying, credential stuffing, brute force, rainbow tables, birthday/collision and pass-the-hash
+  - evil twin, rogue AP, deauth, jamming, bluesnarfing and bluejacking
+  - downgrade, DDoS amplification, MAC flooding and VLAN hopping
+  - clickjacking, watering hole, typosquatting, BEC, spear phishing, whaling, vishing, smishing and DNS tunneling
+- **Question bank:** 205 original questions in four formats: description → attack, attack → description, scenario or sanitized log → attack (two scenarios per attack), and attack → best mitigation.
+- **One right answer:**
+  - Wrong options favor the attacks most often confused with the right one.
+  - A look-alike that could also be correct for a scenario is never offered; for example, on-path is not offered for an ARP-poisoning scenario.
+  - Overlapping or catch-all mitigations are never wrong options.
+- **Feedback:** after Submit Answer, you see a memory hook, the tell-tale sign, the best mitigation, and how each wrong option differs from the right attack.
+- **Options:** 10/20/40/full bank, format and attack-group filters, and **Missed only**.
+- **Priority:** missed questions come first, and other questions about a missed attack are moved up too.
+- **Comparison table:** a searchable table with what each attack is, its sign, its mitigation and what it's confused with.
+- **Progress:** saved under `cybersec_attacks_v1` (per question and per attack) and included in Backup/Restore.
+
+### Separate from exam scores
+- Both modules are supplemental drills. They never touch exam history, readiness estimates or practice exam scores.
+- They work offline and use the same mobile layout as the Ports and Command quizzes.
+
+### Tests
+- New: `tests/sim-recognition.test.js` (30 checks) and `tests/attack-quiz.test.js` (35 checks).
+- Updated: `tests/sim-cmd-quiz.test.js`.
+- Full regression: all 15 test files pass (346 checks).
+
 ### Notes
 - Practice scores are not an official CompTIA prediction. CompTIA's scaled scoring is proprietary.
 - Third-party practice exams (for example, Professor Messer's) are kept out of this app on purpose, so they stay independent readiness checks.
