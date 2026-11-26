@@ -87,7 +87,7 @@ try{
   ok('terminal multiple-choice answers are spread across positions (not always first)', pos.filter(p => p === 0).length < pos.length / 3 && new Set(pos).size >= 3);
   // every practice exam includes one large simulation
   const simIds = new Set(sec.filter(p => p.sim).map(p => H.exposure.qid(p.prompt)));
-  ok('each practice exam has exactly one large simulation', H.PRACTICE_FORMS.security_plus.every(f => f.pbq.filter(id => simIds.has(id)).length === 1));
+  ok('each simulation-format practice exam has exactly one large simulation; Standard PBQ Format exams have none', H.PRACTICE_FORMS.security_plus.every(f => f.pbq.filter(id => simIds.has(id)).length === (f.format === 'standard' ? 0 : 1)));
   // exam-only simulations hidden from Terminal Lab until met in an exam
   const lab0 = H.CLI_LABS.find(l => l.examOnly);
   H.renderLabList();

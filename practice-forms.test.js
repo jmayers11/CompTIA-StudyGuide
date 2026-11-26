@@ -55,16 +55,16 @@ try{
   const NEED = { general: 10, threats: 19, architecture: 16, secops: 24, management: 17 };
   const all = [], allP = [];
   forms.forEach(f => { Object.keys(f.mc).forEach(k => all.push(...f.mc[k])); allP.push(...f.pbq); });
-  ok('15 practice exams (10 original + 5 new-question exams)', forms.length === 15 && forms.every((f, i) => f.n === i + 1));
+  ok('18 practice exams (10 original + 5 new-question + 3 Standard PBQ Format)', forms.length === 18 && forms.every((f, i) => f.n === i + 1));
   ok('each exam: 86 MC split 10/19/16/24/17 by domain + 4 PBQs', forms.every(f => Object.keys(NEED).every(k => (f.mc[k] || []).length === NEED[k]) && f.pbq.length === 4));
-  ok('no question or PBQ appears in two exams', all.length === 1290 && new Set(all).size === 1290 && allP.length === 60 && new Set(allP).size === 60);
+  ok('no question or PBQ appears in two exams', all.length === 1548 && new Set(all).size === 1548 && allP.length === 72 && new Set(allP).size === 72);
   ok('every question exists in the bank and is not supplemental', all.every(id => bankIds.has(id) && !H.EXPOSURE_SUPPLEMENTAL_SET.has(id)));
   ok('every PBQ exists, is exam-style (not a drill)', allP.every(id => defs[id] && !defs[id].drill));
   const domOf = {}; H.QUESTION_BANKS.security_plus.forEach(q => { domOf[q.oid || H.exposure.qid(q.question)] = q.domain; });
   ok('questions sit in the right domain list', forms.every(f => Object.keys(f.mc).every(k => f.mc[k].every(id => domOf[id] === k))));
   const groups = H.EXPOSURE_GROUPS.security_plus || [];
   ok('no exam contains two near-duplicate questions', forms.every(f => { const s = new Set(Object.keys(f.mc).reduce((a, k) => a.concat(f.mc[k]), [])); return groups.every(g => g.filter(id => s.has(id)).length <= 1); }));
-  ok('each exam has a command-line PBQ (cli or terminal)', forms.every(f => f.pbq.some(id => ['cli', 'terminal'].includes(defs[id].type))));
+  ok('each simulation-format exam has a command-line PBQ (cli or terminal)', forms.filter(f => f.format !== 'standard').every(f => f.pbq.some(id => ['cli', 'terminal'].includes(defs[id].type))));
   ok('the fresh mix draws from a bank that contains every practice exam', all.every(id => bankIds.has(id)));
   // CySA+ practice exams: 81 MC (28/21/19/13) + 4 PBQs incl. one large simulation, disjoint, valid
   const cf = H.PRACTICE_FORMS.cysa || [];
@@ -119,7 +119,7 @@ try{
   ok('Practice Exam 4 counts questions already met in the fresh exam as repeats', att()[3].form === 4 && att()[3].repeatTotal === a3.ids.filter(id => Object.keys(forms[3].mc).reduce((a, k) => a.concat(forms[3].mc[k]), []).includes(id)).length && seenInF4.seen === 86);
   H.renderReadiness();
   const rd = document.getElementById('readiness-content').innerHTML.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-  ok('Readiness lists practice exams with first/best attempts', /Practice exams \(2 of 15 taken\)/.test(rd) && /Practice Exam 3 2 /.test(rd));
+  ok('Readiness lists practice exams with first/best attempts', /Practice exams \(2 of 18 taken\)/.test(rd) && /Practice Exam 3 2 /.test(rd));
   // a removed question is replaced from the same domain
   const saved = forms[0].mc.secops[0]; forms[0].mc.secops[0] = '#doesnotexist';
   const built = H.buildPracticeFormExam('security_plus', 1);

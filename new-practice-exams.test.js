@@ -49,7 +49,7 @@ catch(err){ errors.push('boot: ' + err.message + ' ' + (err.stack || '').split('
 const checks = []; const ok = (n, c) => checks.push([n, !!c]);
 const H = globalThis.__hooks;
 try{
-  const forms = H.PRACTICE_FORMS.security_plus, newForms = forms.filter(f => f.reserved), oldForms = forms.filter(f => !f.reserved);
+  const forms = H.PRACTICE_FORMS.security_plus, newForms = forms.filter(f => f.reserved && f.format !== 'standard'), oldForms = forms.filter(f => !f.reserved);
   const NEED = { general: 10, threats: 19, architecture: 16, secops: 24, management: 17 };
   const ids = f => Object.keys(f.mc).reduce((a, k) => a.concat(f.mc[k]), []);
   ok('5 new exams numbered 11-15, marked as new-question exams', newForms.length === 5 && newForms.map(f => f.n).join() === '11,12,13,14,15');
@@ -98,7 +98,7 @@ try{
   ok('Practice Exam 13 builds with all 86 questions and 4 PBQs, nothing replaced', ex && ex.mc.length === 86 && ex.pbq.length === 4 && ex.replaced === 0);
   // hold-back
   const R = H.reservedPracticeIds('security_plus');
-  ok('before any new exam is taken, all 430 questions and 20 PBQs are held back', R.q.size === 430 && R.p.size === 20);
+  ok('before any new exam is taken, all their questions and PBQs are held back (430 + 258 questions, 20 + 12 PBQs)', R.q.size === 688 && R.p.size === 32);
   const poolIds = new Set(); Object.keys(NEED).forEach(k => H.getCombinedDomainPool('security_plus', k, 'bank').forEach(q => poolIds.add(q.id)));
   ok('Fresh exams and quizzes never draw held-back questions', newIds.every(id => !poolIds.has(id)) && poolIds.size > 800);
   const picked = H.selectPBQs(400, 'security_plus').map(q => q._pbqId);
@@ -110,7 +110,7 @@ try{
   // take exam 12 -> its items are released, the others stay held back
   H.getProgress().examAttempts = (H.getProgress().examAttempts || []).concat([{ ts: Date.now(), cert: 'security_plus', form: 12, correctCount: 70, total: 90 }]);
   const R2 = H.reservedPracticeIds('security_plus'), f12 = newForms.find(f => f.n === 12);
-  ok('after Practice Exam 12 is taken, only its items are released', R2.q.size === 344 && ids(f12).every(id => !R2.q.has(id)) && R2.p.size === 16);
+  ok('after Practice Exam 12 is taken, only its items are released', R2.q.size === 602 && ids(f12).every(id => !R2.q.has(id)) && R2.p.size === 28);
   const pool2 = new Set(); Object.keys(NEED).forEach(k => H.getCombinedDomainPool('security_plus', k, 'bank').forEach(q => pool2.add(q.id)));
   ok('released questions join the Fresh exam pool', ids(f12).every(id => pool2.has(id)));
   H.renderPracticeFormPicker();

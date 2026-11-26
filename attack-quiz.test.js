@@ -117,7 +117,9 @@ try{
   const w = H.attackWeights();
   const next = H.buildAttackQuiz(A, { count: 5, weights: w });
   ok('missed question comes first next time', next[0].id === q0.id);
-  ok('other questions about a missed attack are also prioritized', (w[q0.attackId + '#d2n'] || 0) > 0);
+  { const ca = H.getAttackData().attacks[q0.attackId]; const sib = q0.id.endsWith('#d2n') ? q0.attackId + '#n2d' : q0.attackId + '#d2n';
+    // the attack-level boost applies while the attack has more misses than correct answers (a second question on it may have been answered right in this quiz)
+    ok('other questions about a missed attack are also prioritized', ca.wrong > ca.right ? (w[sib] || 0) > 0 : (w[sib] || 0) === 0); }
   H.renderAttacks();
   ok('Missed only button shows the count', /Missed only \(1\)/.test(document.getElementById('atk-missed').textContent) && !document.getElementById('atk-missed').disabled);
   H.startAttackQuiz(true);

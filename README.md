@@ -502,6 +502,39 @@ The five-mode CLI trainer is replaced by plain two-sided flashcards (CLI Mastery
   - Updated: `practice-forms`, `pbq-scoring` and `app-integration`, for 15 exams and 15 large simulations.
   - Full regression: all 16 test files pass.
 
+### Practice Exams 16-18: Standard PBQ Format (2026-11-26)
+- **Purpose:** an alternative readiness benchmark that relies less on long terminal simulations and exact command syntax. Difficulty stays at exam level.
+- **Format of each exam:**
+  - 86 original multiple-choice questions, split 10/19/16/24/17 by domain (the SY0-701 weighting), with 4 "Select TWO" questions per exam.
+  - 4 interactive PBQs, each taking about 2-5 minutes.
+- **The 12 PBQs:**
+  - Configuration tables: a DMZ firewall rule base, a clinic access matrix, and risk-to-control selection.
+  - Evidence selection: a web attack log, a domain controller log showing lateral movement, a certificate failure, `netstat` output interpretation, and a DMZ scan report.
+  - A hospital segmentation diagram.
+  - Ransomware incident response ordering.
+  - Matching: requirement to control, and indicator to attack.
+  - There are no terminal simulations and no typed commands.
+- **Objective audit:**
+  - The existing Security+ exam pool (1,354 questions) was mapped against 544 concepts from the published SY0-701 objectives, using keyword rules.
+  - 223 concepts had 3 or fewer questions, and 41 had none.
+  - The 258 new exam questions were chosen to cover all 223; 221 of them address at least one underrepresented concept.
+  - The full coverage report is in the Claude doc "Security+ Practice Exams 16-18: Objective Coverage Report".
+- **Originality:** no question shares more than 35% of its key words with any earlier question; this is checked by test.
+- **Style (benchmark figures are aggregate statistics only):**
+  - BEST/FIRST/NEXT/MOST wording: 50%, against 51% for Messer.
+  - Correct answer is the single longest option: 13%, against 12.4%.
+  - Correct-to-wrong option length ratio: 1.01, against 1.09.
+  - Keyword giveaway: 2.4%, against 3.2%.
+  - Average stem length: 29 words, against 36.
+- **Labels:** the exam picker and Readiness table show "(Standard PBQ Format)". Each exam's note states that neither PBQ format reproduces the real CompTIA exam exactly.
+- **Hold-back:** like Exams 11-15, each exam's questions and PBQs stay out of Fresh Cold Runs, quizzes, flashcards, the daily challenge and PBQ practice until that exam has been attempted.
+- **Unchanged:** all earlier exams, study modules, scoring and saved progress.
+- **Tests:**
+  - New: `tests/standard-practice-exams.test.js` (25 checks).
+  - Updated: `practice-forms`, `pbq-scoring` and `new-practice-exams`, for 18 exams.
+  - Fixed: an intermittent check in `attack-quiz`.
+  - Full regression: 17 test files, 396 checks, all passing.
+
 ### Notes
 - Practice scores are not an official CompTIA prediction. CompTIA's scaled scoring is proprietary.
 - Third-party practice exams (for example, Professor Messer's) are kept out of this app on purpose, so they stay independent readiness checks.
