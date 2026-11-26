@@ -469,6 +469,39 @@ The five-mode CLI trainer is replaced by plain two-sided flashcards (CLI Mastery
 - Updated: `tests/sim-cmd-quiz.test.js`.
 - Full regression: all 15 test files pass (346 checks).
 
+### Practice Exams 11-15: new-question exams (2026-11-26)
+- **Five new Security+ practice exams**, each built like the real exam: 90 items in total.
+  - 86 multiple-choice questions split 10/19/16/24/17 across the five SY0-701 domains.
+  - 4 PBQs: a command-line task, two interactive tasks, and a large simulation.
+  - Each exam has 3 or 4 "Select TWO" questions.
+- **All new content**, original and written for these exams:
+  - 432 questions (`src: original-2026-11-pe`). 430 are used in the exams, and the 2 spares go into the general bank.
+  - 20 PBQs:
+    - 5 command-line tasks: `chmod 600`, `ipconfig /displaydns`, `schtasks /query /fo list /v`, `dig txt`, `sudo -l`.
+    - 10 interactive tasks: Windows Security log, firewall log, phishing headers, SPF/DMARC records, scan-report triage, VPN settings, an HR access matrix, a hybrid-cloud zone diagram, order of volatility, and attack-to-mitigation matching.
+    - 5 large simulations: an unauthorized SSH key, a malicious Windows service, a SYN flood, an opened phishing payload, and locking down a server with `ufw`.
+  - Nothing is shared with Practice Exams 1-10.
+- **Style:** questions follow the Messer benchmark style (aggregate statistics only; no Messer content is in this app).
+
+| Measure | New exams | Messer |
+| --- | --- | --- |
+| Scenario stems | 100% | 85% |
+| BEST / FIRST / NEXT / MOST wording | 47% | 51% |
+| Correct answer is the single longest option | 10% | 12.4% |
+| Correct-to-wrong option length ratio | 1.01 | 1.09 |
+| Stem keyword gives away the answer | under 1% | 3.2% |
+| Average stem length (words) | 31 | 36 |
+
+- **Kept fresh until you take them:**
+  - Until an exam has been taken once, its questions and PBQs are held out of Fresh Cold Runs, quizzes, flashcards, the daily challenge, PBQ practice and the simulation drills.
+  - Taking an exam releases only that exam's items.
+  - The exam picker shows them as "Practice Exam 11 (new questions)".
+- **Unchanged:** Practice Exams 1-10, every existing question and PBQ, and all saved progress.
+- **Tests:**
+  - New: `tests/new-practice-exams.test.js` (24 checks). It covers structure, originality, answer keys, style measures, PBQ and simulation grading, and the hold-back and release.
+  - Updated: `practice-forms`, `pbq-scoring` and `app-integration`, for 15 exams and 15 large simulations.
+  - Full regression: all 16 test files pass.
+
 ### Notes
 - Practice scores are not an official CompTIA prediction. CompTIA's scaled scoring is proprietary.
 - Third-party practice exams (for example, Professor Messer's) are kept out of this app on purpose, so they stay independent readiness checks.

@@ -78,8 +78,8 @@ try{
     const g1 = G(def, { answers: ans }), half = ans.map((a, i) => i < 3 ? a : (lab.steps[i].kind === 'cmd' ? 'junk' : (lab.steps[i].answer.type === 'choice' ? (lab.steps[i].answer.correct + 1) % lab.steps[i].answer.options.length : 'junk')));
     const g2 = G(def, { answers: half });
     if(g1.isCorrect && g1.points === 6 && !g2.isCorrect && Math.abs(g2.credit - 3 / lab.steps.length) < 1e-9 && lab.steps.length >= 5) simOk++; });
-  ok('7 terminal simulations (5+ steps): full answers 6/6 points, 3 right steps earn 3/N', sims.length === 7 && simOk === 7);
-  ok('10 large simulations in total (7 terminal, 3 configuration)', sec.filter(p => p.sim).length === 10);
+  ok('12 terminal simulations (5+ steps): full answers 6/6 points, 3 right steps earn 3/N', sims.length === 12 && simOk === 12);
+  ok('15 large simulations in total (12 terminal, 3 configuration)', sec.filter(p => p.sim).length === 15);
   ok('multiple-choice stays all-or-nothing at 1 point', (() => { const q = { question: 'x', options: ['a','b','c','d'], answer: ['a'] }; const g = H.gradeExamQuestion(q, ['b']); return g.maxPoints === 1 && g.points === 0 && H.gradeExamQuestion(q, ['a']).points === 1; })());
   ok('points tiers: 3 small / 4 medium / 5 large / 6 simulation', H.pbqPoints({}, 2) === 3 && H.pbqPoints({}, 5) === 4 && H.pbqPoints({}, 9) === 5 && H.pbqPoints({ sim: true }, 2) === 6);
   // terminal choice answers are no longer always the first option

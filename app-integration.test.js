@@ -39,7 +39,7 @@ document.getElementById('exam-cert-select').value = 'security_plus';
 const windowObj = new Proxy({ localStorage, document, addEventListener(){}, removeEventListener(){}, setTimeout: (f) => 0, setInterval: () => 0, clearInterval(){}, clearTimeout(){},
   confirm: () => true, alert: () => {}, matchMedia: () => ({ matches: false, addEventListener(){}, addListener(){} }), requestAnimationFrame: () => 0, navigator: { serviceWorker: undefined, userAgent: 'node' }, location: { reload(){}, href: '', hash: '' }, innerWidth: 1200, innerHeight: 800 },
   { get(t, p){ if(p in t) return t[p]; if(p in globalThis) return globalThis[p]; return anything(); } });
-code = code.replace(/\}\)\(\);\s*$/, '  ;globalThis.__hooks = { exposure, getExamPolicy, renderExposureDashboard, cliTrainer, renderCliTab, cmdCards, getCmdSession: () => cmdSession, renderCmdCard, CMD_CARDS, gradeExamQuestion, instantiatePBQ, PBQ_BANK, renderExamQuestion, getExamState: () => examState, startLab, labSubmit, getLabRun: () => labRun, labEngine, showCliSection, CLI_LABS, renderReadiness, computeReadiness }; })();');
+code = code.replace(/\}\)\(\);\s*$/, '  ;globalThis.__hooks = { exposure, PRACTICE_FORMS, getExamPolicy, renderExposureDashboard, cliTrainer, renderCliTab, cmdCards, getCmdSession: () => cmdSession, renderCmdCard, CMD_CARDS, gradeExamQuestion, instantiatePBQ, PBQ_BANK, renderExamQuestion, getExamState: () => examState, startLab, labSubmit, getLabRun: () => labRun, labEngine, showCliSection, CLI_LABS, renderReadiness, computeReadiness }; })();');
 globalThis.pdfjsLib = anything(); globalThis.JSZip = anything(); globalThis.sessionStorage = localStorage; globalThis.getComputedStyle = () => anything(); globalThis.HTMLElement = function(){}; globalThis.Element = function(){};
 const run = new Function('window','document','localStorage','navigator','location','confirm','alert','setTimeout','setInterval','clearInterval','clearTimeout','matchMedia','requestAnimationFrame','Event', code);
 class Ev { constructor(t){ this.type = t; } }
@@ -116,7 +116,8 @@ try{
   globalThis.__cliGraded = graded; globalThis.__cliPbq = Object.keys(pbqMap);
   globalThis.__cmdMissed = H.cmdCards.status(c0.id);
   // Phase 4: new PBQ types grade correctly and render inside a real exam
-  const newTypes = H.PBQ_BANK.filter(p => p.cert === 'security_plus' && ['evidence','config','zones'].includes(p.type));
+  const reservedPbq = new Set(H.PRACTICE_FORMS.security_plus.filter(f => f.reserved).reduce((x, f) => x.concat(f.pbq), []));
+  const newTypes = H.PBQ_BANK.filter(p => p.cert === 'security_plus' && ['evidence','config','zones'].includes(p.type) && !reservedPbq.has(H.exposure.qid(p.prompt)));
   let pbqOk = 0, pbqBad = [];
   newTypes.forEach(def => {
     const q = H.instantiatePBQ(def);
