@@ -117,6 +117,8 @@ try{
   const opts = document.getElementById('exam-coldrun-form').innerHTML;
   ok('exam picker labels the new exams', /Practice Exam 11 \(new questions\): not taken/.test(opts) && /Practice Exam 12 \(new questions\): taken 1/.test(opts));
 }catch(err){ errors.push('drive: ' + err.message + ' ' + (err.stack || '').split('\n').slice(1, 3).join(' ')); }
+{ const s0 = html.indexOf('\n<script>\n'), e1 = html.indexOf('</script>', s0), e2 = html.indexOf('\n</script>', s0) + 1;
+  ok('no text inside the app script closes the script tag early (the browser would show code as text)', s0 > 0 && e1 === e2); }
 ok('no script errors', errors.length === 0);
 if(errors.length) console.log(errors);
 let failed = 0; checks.forEach(([n, p]) => { console.log((p ? '  ok   ' : '  FAIL ') + n); if(!p) failed++; });
