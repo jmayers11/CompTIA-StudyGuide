@@ -3742,6 +3742,18 @@
   .pbq-config th{ color:var(--muted); font-weight:600; }
   .pbq-config-fixed{ font-family:'SFMono-Regular', Consolas, monospace; }
   .pbq-config-select{ width:100%; min-width:110px; }
+  /* Mobile fit: a <select> is as wide as its longest option unless capped, which made the exam setup
+     page wider than the phone and zoomed the whole screen out. Config tables stack into cards. */
+  select{ max-width:100%; min-width:0; text-overflow:ellipsis; }
+  #exam-panel select, .exam-config-box select{ width:100%; }
+  @media (max-width: 600px){
+    .pbq-config thead{ display:none; }
+    .pbq-config, .pbq-config tbody, .pbq-config tr, .pbq-config td{ display:block; width:100%; }
+    .pbq-config tr{ border:1px solid var(--border); border-radius:8px; margin-bottom:10px; padding:6px 8px; }
+    .pbq-config td{ border:none; padding:4px 0; }
+    .pbq-config td::before{ content:attr(data-label); display:block; font-size:11px; color:var(--muted); margin-bottom:2px; }
+    .pbq-config-select{ min-width:0; }
+  }
   .pbq-zones{ display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:8px; margin-bottom:12px; }
   .pbq-zone{ border:1px dashed var(--border); border-radius:10px; padding:8px; min-height:74px; }
   .pbq-zone-name{ font-size:11.5px; font-weight:700; color:var(--muted); margin-bottom:6px; }
@@ -24000,9 +24012,9 @@
     html += `<div class="pbq-config-wrap"><table class="pbq-config"><thead><tr>${q.columns.map(c => `<th>${escapeHtml(c)}</th>`).join('')}</tr></thead><tbody>`;
     q.rows.forEach((row, r) => {
       html += '<tr>' + row.cells.map((cell, c) => {
-        if(!cell.opts) return `<td class="pbq-config-fixed">${escapeHtml(cell.fixed || '')}</td>`;
+        if(!cell.opts) return `<td class="pbq-config-fixed" data-label="${escapeHtml(q.columns[c] || '')}">${escapeHtml(cell.fixed || '')}</td>`;
         const key = r + ':' + c, val = sel[key] || '';
-        return `<td><select class="pbq-config-select" data-key="${key}" aria-label="${escapeHtml(q.columns[c] + ', row ' + (r + 1))}"><option value="">— choose —</option>${cell.opts.map(o => `<option value="${escapeHtml(o)}"${o === val ? ' selected' : ''}>${escapeHtml(o)}</option>`).join('')}</select></td>`;
+        return `<td data-label="${escapeHtml(q.columns[c] || '')}"><select class="pbq-config-select" data-key="${key}" aria-label="${escapeHtml(q.columns[c] + ', row ' + (r + 1))}"><option value="">— choose —</option>${cell.opts.map(o => `<option value="${escapeHtml(o)}"${o === val ? ' selected' : ''}>${escapeHtml(o)}</option>`).join('')}</select></td>`;
       }).join('') + '</tr>';
     });
     html += '</tbody></table></div>';
@@ -24092,12 +24104,15 @@
     if(!examState.selections[idx]) examState.selections[idx] = { typed: '' };
     const sel = examState.selections[idx];
 
+    // Linux commands get a Linux prompt; everything else keeps the Windows prompt
+    const cliLinux = /^(sudo |chmod|chown|ls\b|cat |grep|find |ss |ip |dig |systemctl|tail |ps |whoami|pwd|mkdir|usermod|crontab|dd |sha256sum|ufw|wc |who\b|date|openssl|nmap|tcpdump|curl|last\b)/i.test(q.example || '');
+    const cliPrompt = cliLinux ? 'student@host:~$' : 'C:\\Users\\student&gt;';
     wrap.innerHTML = `
       <div class="pbq-prompt">${escapeHtml(q.prompt)}</div>
       <div class="pbq-cli-box">
-        <div class="pbq-cli-line">C:\\Users\\student&gt; <span style="color:var(--muted); font-style:italic;">simulated terminal — type your command below</span></div>
+        <div class="pbq-cli-line">${cliPrompt} <span style="color:var(--muted); font-style:italic;">simulated terminal — type your command below</span></div>
         <div class="pbq-cli-input-row">
-          <span>C:\\Users\\student&gt;</span>
+          <span>${cliPrompt}</span>
           <input type="text" id="pbq-cli-input" autocomplete="off" spellcheck="false" placeholder="type command here…" value="${escapeHtml(sel.typed || '')}">
         </div>
       </div>
