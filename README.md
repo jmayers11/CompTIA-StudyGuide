@@ -535,6 +535,30 @@ The five-mode CLI trainer is replaced by plain two-sided flashcards (CLI Mastery
   - Fixed: an intermittent check in `attack-quiz`.
   - Full regression: 17 test files, 396 checks, all passing.
 
+### Terminal help function and Help Drill (2026-11-27)
+- **Why:** the real Security+ exam terminal had a help function, and the app's terminals didn't. Every simulated terminal now has one, in Terminal Lab, terminal and simulation PBQs, and single-command PBQs, on all tracks.
+- **Linux commands:**
+  - `help` or `?` lists the commands.
+  - `COMMAND --help`, `man COMMAND`, `help COMMAND` and `sudo COMMAND --help` show usage and options.
+  - `openssl x509 -help` shows help for one subcommand.
+- **Windows commands:**
+  - `HELP` or `/?` lists the commands.
+  - `COMMAND /?`, `COMMAND -?`, `HELP COMMAND` and `Get-Help COMMAND` show usage and options.
+  - `NET HELP USER` and `NET USER /?` show help for one subcommand.
+- **Coverage:** 39 commands, including every command the labs, simulations and the Help Drill use.
+- **Rules:**
+  - Help never uses up a try or locks an exam step, and it doesn't change scoring.
+  - Help describes commands and options only. It never prints a step's answer, and a test checks this.
+  - In a single-command PBQ, help output appears under the box and the box is cleared, so a help lookup is never graded as your answer.
+- **🆘 Help Drill (CLI Mastery):**
+  - 24 "find it with help" tasks (14 Linux, 10 Windows), each needing an option you may not have memorized.
+  - Look up the options for free, build the command, and the score counts commands that work on the first try.
+  - Choose 5, 10 or all tasks. Missed tasks come back first, and there is a Missed only mode.
+  - Progress is saved under `cybersec_helpdrill_v1` and included in Backup/Restore.
+- **Tests:**
+  - New: `tests/terminal-help.test.js` (25 checks).
+  - Full regression: all 18 test files pass.
+
 ### Notes
 - Practice scores are not an official CompTIA prediction. CompTIA's scaled scoring is proprietary.
 - Third-party practice exams (for example, Professor Messer's) are kept out of this app on purpose, so they stay independent readiness checks.
