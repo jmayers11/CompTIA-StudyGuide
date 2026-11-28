@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-11-28: CySA+ depth round
+- **PBQ tagging.** All 152 CySA+ PBQs now carry a CS0-004 objective. 60 older PBQs had none, which kept them out of objective readiness and coverage. This also makes it possible to target PBQs by objective.
+- **12 new PBQs** for the thinnest objectives: 2.1 scan planning, 2.4 control types and remediation, 2.3 context-based prioritization, 3.1 Kill Chain and Diamond Model, 4.1 reporting by audience and remediation inhibitors, 4.2 escalation order and metrics, and 1.5 automation decisions.
+- **4 new Investigations** with more weight on vulnerability management and reporting: Patch Tuesday triage, lateral movement mapped to ATT&CK and the Kill Chain, the first 24 hours of a data breach, and a public cloud bucket found by CSPM. That makes 18 cases and 108 stages.
+- **🧩 PBQ workout** in the Exam Mode quick start (also offered in 60-minute planner sessions): 5 untimed PBQs with instant feedback, aimed at your weakest or least-practised PBQ objectives. It never uses held-back exam PBQs.
+
+## 2026-11-28: Phase 4 (post-acceptance follow-ups)
+- **Live phone-width audit** of the new Phase 3 screens on the published app. Fixed a Coverage explorer dropdown overflow at 320-375 px.
+- **Subresource Integrity** for the jszip and pdf.js CDN scripts, with a clear message if a library is blocked.
+- **Applied practice for every objective bullet:** 22 new Analyst Training drills (including a new 🏗️ Architecture & Identity module) for the 43 bullets that had only multiple choice. The coverage matrix is now 133 Strong and 61 Adequate, and no bullet is MC-only.
+- **SOC Simulator:** 3 new shifts (insider data loss at a law firm, e-commerce web attacks, an IT/OT manufacturing plant). That makes 6 shifts and 36 alerts.
+- **Commands & Queries syntax pass** over 17 lessons and 60 questions: 2 fixes (a journalctl `--until` date, an `openssl x509 -enddate` example missing its input file).
+
 ## 2026-11-28: Phase 3 "Excellence, Validation and Exam Readiness"
 - **P14 Security.**
   - Backups are validated before restore, with an undo copy kept.

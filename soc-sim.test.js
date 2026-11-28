@@ -59,7 +59,7 @@ const checks = []; const ok = (n, c) => checks.push([n, !!c]);
 try{
   const H = boot({ cybersec_track_v1: 'cysa' });
   const S = H.SOC_SHIFTS;
-  ok('3 shifts with 18 alerts', S.length === 3 && S.reduce((a, s) => a + s.alerts.length, 0) === 18);
+  ok('6 shifts with 36 alerts', S.length === 6 && S.reduce((a, s) => a + s.alerts.length, 0) === 36);
   ok('every alert has valid evidence index, disposition and priority', S.every(s => s.alerts.every(a => a.key >= 0 && a.key < a.tele.length && ['esc','btp','fp'].includes(a.disp) && [1,2,3,4].includes(a.pri) && a.why.length > 40)));
   ok('every escalation-worthy alert has a Tier 2 step, and only those', S.every(s => s.alerts.every(a => (a.disp === 'esc') === !!a.t2)));
   ok('each shift mixes real incidents with alerts to close', S.every(s => s.alerts.some(a => a.disp === 'esc') && s.alerts.some(a => a.disp !== 'esc')));

@@ -64,6 +64,8 @@ try{
   ok('no subtopic is Missing', rows.every(r => r.status !== 'missing'));
   const thin = rows.filter(r => r.status === 'insufficient').map(r => r.obj + ' ' + r.name);
   ok('no subtopic is Thin (' + (thin.join('; ') || 'none') + ')', thin.length === 0);
+  const mcOnly = rows.filter(r => r.applied === 0).map(r => r.obj + ' ' + r.name);
+  ok('every subtopic has applied practice (PBQ, drill or case): ' + (mcOnly.join('; ') || 'all ' + rows.length), mcOnly.length === 0);
   ok('counts are non-negative integers', rows.every(r => Object.values(r.c).every(v => Number.isInteger(v) && v >= 0)));
   const ret = rows.find(r => r.name === 'Logging: retention');
   ok('a gap-filled subtopic now has questions', ret && ret.c.mc >= 3);

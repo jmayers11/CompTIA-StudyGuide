@@ -1,6 +1,6 @@
 # Testing
 
-38 Node test files, 805 checks, all passing as of 2026-11-28. There are no dependencies: every test reads the real `index.html`, and most run the actual application script against a small mock DOM and a fake `localStorage`.
+39 Node test files, 819 checks, all passing as of 2026-11-28 (CySA+ depth round). There are no dependencies: every test reads the real `index.html`, and most run the actual application script against a small mock DOM and a fake `localStorage`.
 
 Run one file with `node tests/<name>.test.js [path/to/index.html]`. Run them all with `for f in tests/*.test.js; do node "$f" || echo "FAIL $f"; done`.
 
@@ -11,7 +11,7 @@ Run one file with `node tests/<name>.test.js [path/to/index.html]`. Run them all
 | `ai-secops.test.js` | 15 | objective 1.6 module content and structure |
 | `analyst-training.test.js` | 24 | Analyst Training drills and sessions |
 | `app-integration.test.js` | 17 | exam screen integration |
-| `app-security.test.js` | 37 | hostile notes, corrupted storage, crafted backups |
+| `app-security.test.js` | 39 | hostile notes, corrupted storage, crafted backups |
 | `attack-quiz.test.js` | 35 | Security+ attack recognition |
 | `cli-lab.test.js` | 14 | terminal labs |
 | `cli-mastery.test.js` | 28 | CLI trainer |
@@ -19,8 +19,9 @@ Run one file with `node tests/<name>.test.js [path/to/index.html]`. Run them all
 | `cmd-query.test.js` | 16 | Commands & Queries lessons |
 | `cmd-quiz.test.js` | 16 | command quiz |
 | `coldrun-selection.test.js` | 26 | fresh/repeat exam selection |
-| `coverage.test.js` | 12 | subobjective coverage explorer |
+| `coverage.test.js` | 13 | subobjective coverage explorer |
 | `cysa-bank-quality.test.js` | 18 | CySA+ rewritten pool quality (length cues, keys, objectives) |
+| `cysa-depth.test.js` | 11 | PBQ objective tags, depth PBQs and cases, PBQ workout |
 | `cysa-new-exams.test.js` | 21 | Exams 11-15 and held-back logic |
 | `cysa-pbq-v2.test.js` | 8 | CySA+ PBQ set v2 |
 | `evidence.test.js` | 23 | evidence log, confidence, adaptive, notebook, readiness, report |

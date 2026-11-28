@@ -54,9 +54,27 @@ Order follows risk: user-data safety and technical correctness first, then exam 
 - [x] P15 Final acceptance + scored report (10 categories, evidence for each rating)
   - Done: FINAL_REPORT.md, self-assessed at 79.5/100 with evidence and gaps for each category (not independent).
 
+## Phase 4 (post-acceptance follow-ups)
+- [x] Real-browser audit of the new screens at 320/375 px (1 overflow bug fixed)
+- [x] Subresource Integrity for the CDN scripts, plus import fallback messages
+- [x] Applied drills for all 43 MC-only bullets (22 drills, new Architecture & Identity module)
+- [x] 3 more SOC shifts (6 total, 36 alerts)
+- [x] Commands & Queries syntax pass (2 fixes)
+- [ ] Screenshots for the documentation
+- [ ] Independent review of a Validation Exam sample (needs a human reviewer)
+- [ ] Compare a Validation Exam score with the readiness estimate (needs your attempts)
+
+## CySA+ depth round
+- [x] Tag all CySA+ PBQs with objectives (60 were untagged)
+- [x] 12 PBQs for thin objectives (2.1, 2.3, 2.4, 3.1, 4.1, 4.2, 1.5)
+- [x] 4 Investigations weighted to domains 2 and 4 (18 total)
+- [x] PBQ workout mode (Exam Mode quick start and planner)
+
 ## Session log
 - 2026-11-28 session 1: baseline recount, checkpoint, checklist created.
 - 2026-11-28 session 1: P14 complete and deployed. 29 test files pass.
+- 2026-11-28 session 9: CySA+ depth round deployed. 39 test files pass.
+- 2026-11-28 session 8: Phase 4 follow-ups deployed. 38 test files and 808 checks pass.
 - 2026-11-28 session 7: P12, P13 and P15 done, and backups now cover all user data. 38 test files and 805 checks pass. All 15 phases are complete; remaining follow-ups are listed in FINAL_REPORT.md.
 - 2026-11-28 session 6: P11 deployed. 37 test files pass.
 - 2026-11-28 session 5: P8-P10 deployed. 36 test files pass. Priority 4 complete. Next: P11 accessibility and viewport audit.

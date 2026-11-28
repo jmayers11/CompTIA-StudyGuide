@@ -28,6 +28,11 @@ Date: 2026-11-28. WCAG 2.2 AA was used as the reference. This is a self-audit wi
 | Animations ignored the reduced-motion setting, apart from the sidebar | Boot animation, transitions | Respects `prefers-reduced-motion`. The boot sequence still runs, but without motion. |
 | No landmarks or skip link | App shell | `role="main"`, a labelled navigation region and a "Skip to main content" link |
 
+## Phase 4 follow-up: live audit of the Phase 3 screens
+After the Phase 3 build was published, the same overflow script was re-run in a real browser at 320 and 375 px on the published app with the CySA+ track. It covered every tab plus these deeper states: a SOC shift queue and an open alert, Query sandbox results (SPL output and the full packet list), a 60-minute planner session, the Readiness tab with the Weakness Notebook and Coverage explorer, an adaptive quiz, and Exam Mode.
+- **One bug found:** the Coverage explorer's objective dropdown, with long option text, was 461 px wide and caused sideways scrolling. Fixed by capping dropdowns in control rows at 100% width (re-measured: clean).
+- A screenshot of a SOC alert at 320 px confirmed readable telemetry lines and full-width disposition buttons.
+
 ## Already in good shape
 - `lang="en"` is set, and the viewport tag allows pinch zoom.
 - No positive `tabindex` values.

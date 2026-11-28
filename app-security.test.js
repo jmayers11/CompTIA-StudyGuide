@@ -134,6 +134,10 @@ try{
   H.importBackupFile({ size: 999 * 1024 * 1024, _text: '{}' });
   ok('oversized backup file is refused before reading', pendingReader === null && alerts.some(a => /too large/i.test(a)));
 }catch(err){ errors.push('restore: ' + err.message + ' ' + (err.stack || '').split('\n')[1]); }
+// 4b) third-party scripts are pinned with Subresource Integrity
+const cdn = (html.match(/<script src="https:\/\/[^"]+"[^>]*>/g) || []);
+ok('every external script has an integrity hash and crossorigin (' + cdn.length + ')', cdn.length >= 1 && cdn.every(t => /integrity="sha(256|384|512)-[A-Za-z0-9+\/=]{40,}"/.test(t) && /crossorigin="anonymous"/.test(t)));
+ok('import features say so clearly if a library is blocked', /typeof JSZip === 'undefined'/.test(html) && /if\(!window\.pdfjsLib\)/.test(html));
 // 5) static: user-data attributes are escaped
 const rawAttr = (html.match(/data-id="\$\{n\.id\}"/g) || []).length;
 ok('note ids are escaped wherever they are written into attributes', rawAttr === 0);

@@ -725,6 +725,16 @@ Tracked in `PHASE3_CHECKLIST.md`. This step hardens how the app handles saved an
   - A 🤖 Analyst Training module with 4 drills.
   - 2 Investigations.
   - A 🤖 Recognition type with 20 items.
+- **CySA+ depth round (2026-11-28).**
+  - All CySA+ PBQs are now tagged to an objective.
+  - 12 new PBQs for the thinnest objectives.
+  - 4 new Investigations focused on vulnerability management and reporting (18 total).
+  - A new **🧩 PBQ workout** quick start in Exam Mode: 5 untimed PBQs with instant feedback, aimed at your weakest objectives.
+- **Phase 4 follow-ups (2026-11-28).**
+  - **Every CS0-004 objective bullet now has hands-on practice.** 22 new Analyst Training drills were added, including a new 🏗️ Architecture & Identity module.
+  - **The SOC Simulator now has 6 shifts:** insider data loss, e-commerce web attacks and a manufacturing IT/OT plant were added.
+  - **The two CDN libraries are pinned with integrity hashes.**
+  - **Fixes:** a dropdown that overflowed on phones, and two Commands & Queries syntax errors.
 - **Study planner, documentation and final report (P12, P13, P15).**
   - The planner has an "I have time now" session builder (5, 15, 30, 60 minutes or custom), a weekly summary and exam-weighted domain focus. There are no streaks.
   - The Readiness tab exports a progress report as a Markdown file.
