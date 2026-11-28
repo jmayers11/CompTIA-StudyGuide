@@ -71,9 +71,9 @@ try{
   const cIds = new Set(H.QUESTION_BANKS.cysa.map(q => q.oid || H.exposure.qid(q.question)));
   const cDefs = {}; H.PBQ_BANK.filter(p => p.cert === 'cysa').forEach(p => { cDefs[H.exposure.qid(p.prompt)] = p; });
   const cAll = [], cP = []; cf.forEach(f => { Object.keys(f.mc).forEach(k => cAll.push(...f.mc[k])); cP.push(...f.pbq); });
-  ok('CySA+: 15 practice exams, 81 MC split 28/21/19/13 + 4 PBQs each', cf.length === 15 && cf.every(f => f.mc.secops.length === 28 && f.mc.vulnmgmt.length === 21 && f.mc.ir_mgmt.length === 19 && f.mc.reporting.length === 13 && f.pbq.length === 4));
-  ok('CySA+: no overlap, all IDs valid and not supplemental, one large simulation per exam', new Set(cAll).size === 1215 && new Set(cP).size === 60 && cAll.every(id => cIds.has(id) && !H.EXPOSURE_SUPPLEMENTAL_SET.has(id)) && cf.every(f => f.pbq.every(id => cDefs[id])) && cf.filter(f => f.n <= 10).every(f => f.pbq.filter(id => cDefs[id].sim).length === 1));
-  ok('CySA+: exams 11-15 are reserved, 11-13 Standard and 14-15 Advanced Analyst profiles, with interactive (no terminal) PBQs', cf.filter(f => f.n >= 11).every(f => f.reserved && f.format === (f.n >= 14 ? 'advanced' : 'standard') && f.pbq.every(id => !['cli', 'terminal'].includes(cDefs[id].type))));
+  ok('CySA+: 18 practice exams, 81 MC split 28/21/19/13 + 4 PBQs each', cf.length === 18 && cf.every(f => f.mc.secops.length === 28 && f.mc.vulnmgmt.length === 21 && f.mc.ir_mgmt.length === 19 && f.mc.reporting.length === 13 && f.pbq.length === 4));
+  ok('CySA+: no overlap, all IDs valid and not supplemental, one large simulation per exam', new Set(cAll).size === 1458 && new Set(cP).size === 72 && cAll.every(id => cIds.has(id) && !H.EXPOSURE_SUPPLEMENTAL_SET.has(id)) && cf.every(f => f.pbq.every(id => cDefs[id])) && cf.filter(f => f.n <= 10).every(f => f.pbq.filter(id => cDefs[id].sim).length === 1));
+  ok('CySA+: exams 11-18 are reserved, 11-13 Standard, 14-15 Advanced Analyst and 16-18 Validation profiles, with interactive (no terminal) PBQs', cf.filter(f => f.n >= 11).every(f => f.reserved && f.format === (f.n >= 16 ? 'validation' : f.n >= 14 ? 'advanced' : 'standard') && f.pbq.every(id => !['cli', 'terminal'].includes(cDefs[id].type))));
   const nf = H.PRACTICE_FORMS.network_plus || [];
   const nIds = new Set(H.QUESTION_BANKS.network_plus.map(q => q.oid || H.exposure.qid(q.question)));
   const nDefs = {}; H.PBQ_BANK.filter(p => (p.cert || 'network_plus') === 'network_plus').forEach(p => { nDefs[H.exposure.qid(p.prompt)] = p; });

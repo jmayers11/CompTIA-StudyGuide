@@ -47,14 +47,14 @@ const checks = []; const ok = (n, c) => checks.push([n, !!c]);
 const H = globalThis.__hooks;
 try{
   const I = H.REC_ITEMS, T = Object.keys(H.REC_TYPES);
-  ok('11 recognition quiz types (acronyms live in their own tab)', T.length === 11);
+  ok('12 recognition quiz types (acronyms live in their own tab)', T.length === 12);
   ok('every type has 12+ items', T.every(t => I.filter(i => i.t === t).length >= 12));
   ok('ids unique', new Set(I.map(i => i.id)).size === I.length);
   ok('every item has prompt, answer and explanation', I.every(i => i.p && i.a && i.w && i.w.length > 8));
   ok('backup includes recognition progress', H.BACKUP_KEYS.includes('cybersec_recognition_v1'));
   ok('mobile tab name registered', H.M_TAB_NAMES.recognition === 'Recognition');
   H.switchTab('recognition');
-  ok('tab opens with all type cards', document.getElementById('recognition-panel').style.display === 'block' && (document.getElementById('rec-area').innerHTML.match(/rec-go/g) || []).length === 11);
+  ok('tab opens with all type cards', document.getElementById('recognition-panel').style.display === 'block' && (document.getElementById('rec-area').innerHTML.match(/rec-go/g) || []).length === 12);
   document.getElementById('rec-count').value = 'all';
   // build every type many times: options valid
   let bad = 0, rev = 0;

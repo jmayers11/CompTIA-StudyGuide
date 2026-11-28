@@ -48,7 +48,7 @@ catch(err){ errors.push('boot: ' + err.message + ' ' + (err.stack || '').split('
 const checks = []; const ok = (n, c) => checks.push([n, !!c]);
 const H = globalThis.__hooks;
 try{
-  const forms = H.PRACTICE_FORMS.cysa, newForms = forms.filter(f => f.n >= 11), oldForms = forms.filter(f => f.n <= 10);
+  const forms = H.PRACTICE_FORMS.cysa, newForms = forms.filter(f => f.n >= 11 && f.n <= 15), oldForms = forms.filter(f => f.n <= 10);
   const NEED = { secops: 28, vulnmgmt: 21, ir_mgmt: 19, reporting: 13 };
   const ids = f => Object.keys(f.mc).reduce((a, k) => a.concat(f.mc[k]), []);
   const bank = H.RAW_CYSA_BANK, byId = {}; bank.forEach(q => { byId[q.oid || H.exposure.qid(q.question)] = q; });
@@ -79,7 +79,7 @@ try{
   const ex = H.buildPracticeFormExam('cysa', 14);
   ok('Practice Exam 14 builds with all 81 questions and 4 PBQs, nothing replaced', ex && ex.mc.length === 81 && ex.pbq.length === 4 && ex.replaced === 0);
   const R = H.reservedPracticeIds('cysa');
-  ok('before any new exam is taken, all 405 questions and 20 PBQs are held back', R.q.size === 405 && R.p.size === 20);
+  ok('before any new exam is taken, all 648 questions and 32 PBQs (exams 11-18) are held back', R.q.size === 648 && R.p.size === 32);
   const poolIds = new Set(); Object.keys(NEED).forEach(k => H.getCombinedDomainPool('cysa', k, 'bank').forEach(q => poolIds.add(q.id)));
   ok('Fresh exams and quizzes never draw held-back questions', newIds.every(id => !poolIds.has(id)) && poolIds.size > 700);
   const picked = H.selectPBQs(400, 'cysa').map(q => q._pbqId);
@@ -88,7 +88,7 @@ try{
   ok('daily challenge skips held-back questions', dp.every(q => !R.q.has(q.oid || H.exposure.qid(q.question))));
   H.getProgress().examAttempts = (H.getProgress().examAttempts || []).concat([{ ts: Date.now(), cert: 'cysa', form: 15, correctCount: 60, total: 85 }]);
   const R2 = H.reservedPracticeIds('cysa'), f15 = newForms.find(f => f.n === 15);
-  ok('after Practice Exam 15 is taken, only its items are released', R2.q.size === 324 && ids(f15).every(id => !R2.q.has(id)) && R2.p.size === 16);
+  ok('after Practice Exam 15 is taken, only its items are released', R2.q.size === 567 && ids(f15).every(id => !R2.q.has(id)) && R2.p.size === 28);
   document.getElementById('exam-cert-select').value = 'cysa';
   H.renderPracticeFormPicker();
   const opts = document.getElementById('exam-coldrun-form').innerHTML;

@@ -76,6 +76,17 @@ ok('older attempts without points still use the raw percentage', R([exam(0.8, 0.
 const advice = [strong, border, inflated, empty].map(r => r.label + ' ' + r.advice).join(' ');
 ok('no labels claim an official result or a guaranteed pass', !/official|guarantee|will pass|you passed/i.test(advice));
 
+// Advanced-profile exams are excluded from certification readiness and reported separately
+{
+  const base = [exam(0.9, 0.9), exam(0.9, 0.9)];
+  const adv = [exam(0.4, 0.4, { extra: { form: 14 } }), exam(0.45, 0.45, { extra: { form: 15 } })];
+  const withAdv = computeReadiness({ cert: 'security_plus', attempts: base.concat(adv), domains: DOMAINS, passingScore: 750, excludeForms: [14, 15] });
+  const without = R(base);
+  ok('advanced exams do not change the readiness level', withAdv.level === without.level && withAdv.examsTaken === without.examsTaken);
+  ok('advanced attempts are counted separately', withAdv.advancedTaken === 2 && Math.abs(withAdv.advancedBest - 0.45) < 0.02);
+  ok('without an exclusion list every attempt still counts', R(base.concat(adv)).examsTaken === 4);
+}
+
 let failed = 0;
 checks.forEach(([n, pass]) => { console.log((pass ? '  ok   ' : '  FAIL ') + n); if(!pass) failed++; });
 console.log(`${checks.length - failed} passed, ${failed} failed`); process.exit(failed ? 1 : 0);

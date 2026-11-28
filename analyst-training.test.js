@@ -47,8 +47,8 @@ const checks = []; const ok = (n, c) => checks.push([n, !!c]);
 const H = globalThis.__hooks;
 try{
   const D = H.ATC_DRILLS, mods = Object.keys(H.ATC_MODS);
-  ok('six modules', mods.length === 6 && ['siem','vuln','hunt','net','ir','rep'].every(m => mods.includes(m)));
-  ok('every module has 6+ drills', mods.every(m => D.filter(d => d.mod === m).length >= 6));
+  ok('seven modules (six core + AI in SecOps)', mods.length === 7 && ['siem','vuln','hunt','net','ir','rep','ai'].every(m => mods.includes(m)));
+  ok('every core module has 6+ drills and AI has 4+', mods.every(m => D.filter(d => d.mod === m).length >= (m === 'ai' ? 4 : 6)));
   const qs = []; D.forEach(d => d.qs.forEach(q => qs.push([d, q])));
   ok('100+ questions in total (' + qs.length + ')', qs.length >= 100);
   ok('drill ids unique', new Set(D.map(d => d.id)).size === D.length);

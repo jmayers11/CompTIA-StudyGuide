@@ -682,6 +682,80 @@ Audit first (narrow-screen screenshots), then four increments. The dark theme, c
   - The Dashboard empty state offers Exam Mode and Quiz buttons.
   - `tests/ux.test.js` now has 20 checks.
 
+### Phase 3, step 1: app security and storage reliability (2026-11-28)
+Tracked in `PHASE3_CHECKLIST.md`. This step hardens how the app handles saved and imported data. There are no content changes.
+- **Backup restore is validated before anything is written.**
+  - Only the known backup keys are accepted. Unknown keys are ignored.
+  - Every value must be text. Objects are re-serialized, and values that should be JSON must parse.
+  - Notes are structurally sanitized.
+  - Files over 40 MB are refused before reading.
+  - The data being replaced is copied to `cybersec_restore_undo_v1` first, when storage space allows.
+  - Nothing from a backup is ever evaluated as code.
+- **Notes are sanitized on every load.** This applies to storage, backup restores and Markdown imports.
+  - Non-object entries are dropped.
+  - Unsafe or duplicate ids are replaced.
+  - Text fields are coerced to text, and tags to a list of strings.
+  - Unexpected nested objects and `__proto__` keys are discarded.
+  - Note ids written into HTML attributes are now escaped. Previously a crafted id could inject an attribute into the note list.
+- **Corrupted storage recovery.**
+  - Before any feature loads, each saved value is checked for readable JSON and the expected top-level shape (list or object).
+  - A bad value is moved to `cybersec_quarantine_v1` and removed from its live key, so that feature starts fresh instead of stopping the app. A short notice is shown.
+  - Null entries in the missed-question queue, activity log and badge list are dropped.
+  - The activity log loader now tolerates a non-list value. A non-list value used to crash startup.
+- **Tests.** New `tests/app-security.test.js` (37 checks) covers:
+  - A hostile note rendered on 15 tabs.
+  - Hostile settings values.
+  - Every backed-up key holding invalid JSON, wrong shapes, `null`, numbers, strings and arrays with null entries.
+  - Payload validation and prototype pollution.
+  - An end-to-end restore that confirms the undo snapshot, sanitization, non-execution, malformed files and oversized files.
+- **Technical accuracy audit (P1).**
+  - Automated cross-checks: Event IDs, Sysmon IDs, ports, CVSS vectors, ATT&CK IDs and IR lifecycle names.
+  - A 60-item stratified manual sample. It was an AI review, not an independent expert review.
+  - Results and classifications are in `ACCURACY_AUDIT.md`.
+  - Fixed:
+    - Wrong Microsoft Defender Event IDs in the Windows event ID note.
+    - A PsExec ATT&CK mapping.
+    - An ambiguous indicator-type question.
+    - A historically wrong supplemental question.
+- **Coverage explorer and gap fill (P2).**
+  - Every one of the 194 CS0-004 objective bullets is matched against the app's content. Results are in `COVERAGE_MATRIX.md`, and the Readiness tab now has a Coverage explorer with Practice buttons for each subtopic.
+  - 48 new scenario questions fill the bullets that had little or no practice.
+- **AI in Security Operations (P3), objective 1.6.** Details in `AI_MODULE.md`.
+  - 24 multiple-choice questions and 8 PBQs.
+  - A 🤖 Analyst Training module with 4 drills.
+  - 2 Investigations.
+  - A 🤖 Recognition type with 20 items.
+- **Study planner, documentation and final report (P12, P13, P15).**
+  - The planner has an "I have time now" session builder (5, 15, 30, 60 minutes or custom), a weekly summary and exam-weighted domain focus. There are no streaks.
+  - The Readiness tab exports a progress report as a Markdown file.
+  - Backups now include every user-data key.
+  - New documents: `ARCHITECTURE.md`, `DATA_MODEL.md`, `SECURITY.md`, `TESTING.md`, `METHODOLOGY.md`, `CHANGELOG.md` and `FINAL_REPORT.md` (self-assessed at 79.5/100, with gaps listed).
+- **Accessibility and small screens (P11).** Fixes from an audit at 320-1024 px:
+  - two horizontal-scroll bugs on phones;
+  - readable light-theme colours;
+  - labels on all form controls;
+  - a minimum text size of 11 px;
+  - visible keyboard focus;
+  - support for the reduced-motion setting;
+  - landmarks and a skip link.
+  The dark theme is unchanged. Details are in `ACCESSIBILITY.md`.
+- **SOC Simulator, PBQ fairness and Query sandbox (P8-P10).**
+  - The **🖥️ SOC Simulator** (CySA+) runs three shifts with 18 synthetic alerts. As Tier 1, you pick the key telemetry line, choose a disposition (escalate, benign true positive, or false positive) and set a priority. As Tier 2, you decide the next step for each incident you escalated. A shift report scores triage, escalations and missed incidents.
+  - **PBQs:**
+    - Command answers now accept different capitalization, extra spaces, quoted search terms and flag letters in a different order.
+    - Match and build PBQs work fully by keyboard and screen reader.
+    - Order steps have labelled move buttons.
+  - The **Query sandbox** in Commands & Queries is labelled "Simulated". It runs SPL-style, KQL-style and Wireshark display-filter queries over synthetic data, includes 8 checked challenges and explains common syntax mistakes.
+- **Adaptive learning, readiness and weakness notebook (P5-P7).**
+  - Every graded answer from Exam Mode, Quizzes, Analyst Training and Investigations goes into one evidence log, marked first try or repeat.
+  - Quizzes and Exam Mode have optional **Sure / Unsure / Guessing** buttons.
+  - **🎯 Adaptive · 15** (CySA+ Quizzes) weights questions toward your weakest objectives and recent misses. It never uses questions held back for exams you haven't taken.
+  - The Readiness tab reports **certification readiness** (never-seen exam questions) and **analyst proficiency** (first-try drill and case accuracy) separately, each with a list of evidence checks and a "How these are calculated" note.
+  - The **📓 Personal Weakness Notebook** lists confident misses first (likely misconceptions), keeps your own notes, has a practice button, and clears an entry after two correct answers in a row.
+- **Validation Exams 16-18 (P4).** Three new full-length CySA+ exams: 243 new questions and 12 new PBQs, Standard profile. Each is held back until you take it. A separate check pass and its limits are described in `VALIDATION_EXAMS.md`.
+- **Readiness excludes Advanced exams.** Practice Exams 14–15 (Advanced Analyst profile) no longer count toward the certification readiness estimate. They are listed separately on the Readiness tab.
+- **Not done.** A Content-Security-Policy header is not set. The app is one offline file with inline scripts, so a strict CSP would need a build step. The mitigations above rely on escaping and validation instead.
+
 ### Notes
 - Practice scores are not an official CompTIA prediction. CompTIA's scaled scoring is proprietary.
 - Third-party practice exams (for example, Professor Messer's) are kept out of this app on purpose, so they stay independent readiness checks.

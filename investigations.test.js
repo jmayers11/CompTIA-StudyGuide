@@ -48,14 +48,14 @@ const H = globalThis.__hooks;
 const play = (correctUpTo, useHint) => { const R = H.getRun(); R.intro = false; while(R.i < R.steps.length){ const st = R.steps[R.i]; if(useHint) R.hintUsed = true; const good = st.opts.map((o, k) => k).filter(k => st.correct.includes(st.opts[k])); const bad = st.opts.map((o, k) => k).filter(k => !st.correct.includes(st.opts[k])); R.sel = R.i < correctUpTo ? good : bad.slice(0, st.n); H.invSubmit(); R.i++; R.sel = []; R.answered = false; R.hintUsed = false; } H.renderInvStep(); };
 try{
   const V = H.INVESTIGATIONS;
-  ok('12 investigations', V.length === 12);
+  ok('14 investigations (12 core + 2 AI in SecOps)', V.length === 14);
   ok('each case has stages at all three levels', V.every(v => ['b','i','a'].every(l => v.stages.some(s => s.lvl === l))));
   ok('each case is multi-stage (6+) with evidence and explanations', V.every(v => v.stages.length >= 6 && v.stages.every(s => s.art && s.why && s.o.length >= 4)));
   ok('cases tagged with CS0-004 objectives across all four domains', ['1','2','3','4'].every(d => V.some(v => v.objs.some(o => o[0] === d))));
   ok('beginner stages all have hints', V.every(v => v.stages.filter(s => s.lvl === 'b').every(s => s.hint)));
   ok('backup and mobile name registered', H.BACKUP_KEYS.includes('cybersec_invest_v1') && H.M_TAB_NAMES.invest === 'Investigations');
   H.switchTab('invest');
-  ok('tab shows 36 case/level buttons', (document.getElementById('inv-area').innerHTML.match(/inv-go/g) || []).length === 36);
+  ok('tab shows 42 case/level buttons', (document.getElementById('inv-area').innerHTML.match(/inv-go/g) || []).length === 42);
   H.startInv('ransom', 'b'); let R = H.getRun();
   ok('beginner: only core stages, 3 choices on single-answer stages', R.steps.length === 2 && R.steps.every(st => st.n > 1 || st.opts.length === 3));
   ok('every stage keeps its correct answer(s) among the choices', V.every(v => ['b','i','a'].every(l => { H.startInv(v.id, l); return H.getRun().steps.every(st => st.correct.every(c => st.opts.includes(c))); })));
