@@ -559,6 +559,129 @@ The five-mode CLI trainer is replaced by plain two-sided flashcards (CLI Mastery
   - New: `tests/terminal-help.test.js` (25 checks).
   - Full regression: all 18 test files pass.
 
+### CySA+ CS0-004 Phase 2 upgrade (2026-11-27)
+Built against the official CS0-004 V4 exam objectives (document version 2.0): 15 objectives in 4 domains weighted 34/26/24/16, and the official acronym list. Everything below is an unofficial study aid. Scores are practice estimates, not CompTIA scaled scores, and nothing here predicts a pass.
+
+**Before and after (CySA+ only)**
+
+| Item | Before | After |
+|---|---|---|
+| Multiple-choice pool used by exams | 828 (rewritten in place, IDs kept) | 828 rewritten + 414 new (405 in Exams 11-15, 9 extra practice) |
+| PBQs | 60 | 120 (60 new interactive PBQs) |
+| Fixed practice exams | 10 | 15 (11-13 Standard profile, 14-15 Advanced Analyst profile) |
+| Objective-tagged questions | 0 | 1,242 |
+| Analyst Training drills | none | 48 drills, 119 questions, 6 modules |
+| Recognition quizzes | none | 11 types, 213 items, plus the Acronym Trainer |
+| Acronyms | none | 374 (CySA+ 81 + Security+ 336 official entries) |
+| Command and query lessons | none | 17 lessons, 60 questions |
+| Investigations | none | 12 cases x 3 levels, 72 stages |
+| Objective study notes and readiness | none | 15 notes, per-objective readiness with recommendations |
+
+**Coverage matrix (after).** MC = rewritten pool + new exam questions. PBQ before/new. Drills = Analyst Training questions. Cases = investigations touching the objective. Every objective also has one study note. The 'PBQ before' column comes from the earlier mapping, where some older PBQs count under more than one objective.
+
+| Objective | MC pool | MC new | PBQ before | PBQ new | Drills | Cases |
+|---|---|---|---|---|---|---|
+| 1.1 Architecture | 53 | 26 | 10 | 3 | 0 | 2 |
+| 1.2 Indicators | 64 | 36 | 9 | 8 | 29 | 8 |
+| 1.3 Tools | 97 | 31 | 8 | 7 | 15 | 4 |
+| 1.4 Threat intel and hunting | 48 | 20 | 2 | 6 | 16 | 2 |
+| 1.5 Efficiency | 13 | 15 | 1 | 2 | 0 | 0 |
+| 1.6 AI in SecOps | 7 | 15 | 0 | 0 | 0 | 0 |
+| 2.1 Scanning methods | 32 | 25 | 3 | 1 | 2 | 2 |
+| 2.2 Tool output | 51 | 26 | 4 | 4 | 9 | 1 |
+| 2.3 Prioritize and mitigate | 92 | 36 | 5 | 5 | 8 | 2 |
+| 2.4 Controls and risk | 42 | 20 | 0 | 2 | 0 | 1 |
+| 3.1 Attack frameworks | 22 | 20 | 0 | 2 | 0 | 1 |
+| 3.2 IR process | 105 | 36 | 13 | 4 | 11 | 4 |
+| 3.3 IR techniques | 66 | 41 | 14 | 10 | 8 | 7 |
+| 4.1 VM reporting | 63 | 31 | 1 | 3 | 8 | 2 |
+| 4.2 IR reporting | 73 | 36 | 2 | 3 | 13 | 3 |
+
+Objective tags come from keyword mapping, then manual review during the rewrite. Some questions touch more than one objective; each is counted once, under its main objective.
+
+**Multiple-choice quality (pool of 828, automated checks)**
+
+| Measure | Before | After | Target |
+|---|---|---|---|
+| Scenario-based stems (heuristic) | ~27% | ~92% | 85-95% |
+| BEST / FIRST / NEXT / MOST wording | 36% | 48% | 45-60% |
+| Correct answer uniquely longest | 21% | 7.8% | about 12% |
+| Correct-to-distractor length ratio | 1.06 | 0.97 | 0.95-1.10 |
+| Keyword giveaways | 9.2% | 2.9% | minimal |
+| Average explanation length | 7 words | 23 words | explain the distractors |
+| Select TWO items | 0 | 11 (pool) + 46 (new exams and extras) | some |
+
+New exam questions: correct answer uniquely longest in 4%, answers spread A-D (about 90 each). The Advanced Analyst exams average about 23-word stems vs. 15 on Standard, and they have 16-19 Select TWO items each vs. 3-4 on Standard.
+
+**What was added**
+- **Rewrite of all 828 pool questions:** trivia was replaced with exam-level questions on the same objective, giveaways and length bias were removed, and explanations now cover the distractors. IDs and progress were kept.
+- **🧪 Analyst Training:** 6 modules (SIEM, vulnerability management, threat hunting, network traffic, IR/forensics, reporting). Each drill has synthetic evidence, feedback, missed review and per-module progress. Key `cybersec_atc_v1`.
+- **🔤 Acronyms:** official lists, with flashcards (spaced review) and four quiz modes: acronym to meaning, meaning to acronym, what it does to acronym, and scenario to acronym. Notes appear where CompTIA's printed expansion differs from common usage. Key `cybersec_acronyms_v1`.
+- **🧠 Recognition:** 11 quick quizzes covering Event IDs (both directions), Linux logs, SIEM alerts, ATT&CK tactics, scanner output, intel terms, tool selection, IR actions, CVSS (both directions), traffic anomalies and reporting metrics. Key `cybersec_recognition_v1`.
+- **🧾 Commands & Queries:** 17 lessons tiered core, supplemental or advanced. The tiers are the app's guidance, not CompTIA's; CompTIA lists tools and skills, not syntax. Key `cybersec_cmdquery_v1`.
+- **60 new PBQs:** 12 SIEM, 12 vulnerability, 10 IR, 8 network, 8 intel/hunting, 6 reporting, 4 forensics. All give partial credit. Formats: evidence selection, table dropdowns, matching, ordering and zones.
+- **🕵️ Investigations:** 12 multi-stage cases at beginner, intermediate and advanced levels, kept separate from exams. Key `cybersec_invest_v1`.
+- **Practice Exams 11-15:**
+  - Each has 81 MC + 4 PBQs and covers every objective.
+  - All five are held back from every other study mode until taken.
+  - 20 of the new PBQs are reserved for these exams; the other 40 are in normal practice.
+- **Objective readiness (Readiness tab, CySA+):**
+  - Accuracy per objective, using exam answers (70%) and drills and cases (30%).
+  - An objective needs at least 8 answers before it is rated.
+  - Shows the three highest-value objectives to work on next, with study notes and links.
+
+**Remaining gaps (honest list)**
+- 1.6 (AI) has no PBQ, Analyst Training drill or investigation yet; it is covered by 22 MC and a study note.
+- Analyst Training has no drills tagged 1.1, 1.5, 2.4 or 3.1. Those objectives rely on MC, PBQs, recognition quizzes and notes.
+- 1.5 and 3.1 are still the thinnest MC objectives in the main pool (13 and 22). The new exams add 15 and 20.
+- The 869 supplemental CySA+ questions (held out of exams) were not rewritten or objective-tagged.
+- Objective readiness uses exam answers and two practice modules. Quiz-mode answers, recognition quizzes and command lessons are not counted yet.
+- Quality measures are automated heuristics (length, wording, keyword overlap). They don't replace expert review. Technical content was written carefully but has not been independently validated.
+
+**Tests (27 files, all passing)**
+- New: `cysa-bank-quality`, `analyst-training`, `acronyms`, `recognition`, `cmd-query`, `cysa-pbq-v2`, `investigations`, `cysa-new-exams`, `objective-readiness`.
+- Updated: `practice-forms` now expects 15 CySA+ exams.
+- The existing Security+, Network+, A+ and Linux tests are unchanged and still pass. That covers exposure engine, saved exams, partial credit, flashcards, terminal labs and help, readiness and practice forms.
+- Mobile: Analyst Training, Acronyms and Commands & Queries were checked in a narrow (about 630 px) preview, and evidence blocks and code tables wrap on small screens. Recognition, Investigations and the objective readiness panel use the same layout but weren't screenshot-checked. Nothing was tested on a physical phone.
+
+**Known limitations**
+- All logs, hosts, people and data in drills, PBQs and cases are fictional.
+- The Advanced Analyst profile is harder by design, so scores aren't directly comparable with Standard exams.
+- Command syntax shown in lessons reflects common tool versions; options can differ by version and platform.
+
+### UI/UX pass (2026-11-27)
+Audit first (narrow-screen screenshots), then four increments. The dark theme, colors, boot animation and Study-Bot are unchanged.
+- **Navigation:** the sidebar and phone menu follow your track. For CySA+ the groups are Learn (Notes, Flashcards, Acronyms, Commands & Queries, Recognition), Practice (Quizzes, Analyst Training, Investigations, CLI Mastery), Exams and Progress. Security+ and Network+ have their own layouts. Other tools move into a collapsible **More tools** group, so nothing is removed.
+- **Readiness** now opens on your track's certification, so the CySA+ objective panel shows without switching. With no data yet, it suggests starting with a full practice exam.
+- **Home — Today's plan:** up to four next steps from your own progress: the next untaken practice exam, your weakest objective, due or new acronym cards, missed drill questions and the next investigation. Each step opens with one tap. It replaces the generic suggestion when there is a plan to show.
+- **Exam Mode quick start:** Practice Exam N (next untaken), Cold Run and Quick 20 (untimed, instant feedback). The long configuration moved into a **Custom exam settings** section, collapsed on phones and open on wide screens.
+- **Polish:**
+  - Dropdowns now use the dark theme instead of bright white.
+  - Buttons in cards are compact.
+  - Stat tiles show two per row on phones, and the objective table becomes stacked cards on phones.
+  - The Study-Bot is smaller on phones, closes when tapped, and hides after 3.5 seconds.
+  - The Focus button sits bottom-left, and pages leave room at the bottom so the floating buttons don't cover content.
+- **Tests:**
+  - New: `tests/ux.test.js` (11 checks).
+  - All 28 test files pass.
+  - A pre-change backup is saved as `index_backup_2026-11-27_before-ux-pass.html`.
+- **Round 2:**
+  - Quizzes get a quick start (question bank, review queue, speed drill), and the long settings list is collapsible.
+  - PBQs no longer show their prompt twice.
+  - Quick 20 is now multiple choice only.
+  - The Daily Challenge uses the rewritten bank instead of the older supplemental questions.
+  - On phones, the intros on the new tabs collapse to two lines (tap to expand).
+  - A one-time "New in this update" card appears on Home for the CySA+ track.
+  - The quiz tag chips wrap on small screens.
+  - `tests/ux.test.js` now has 16 checks.
+- **Round 3:**
+  - Notes get a search box at the top, wired to the existing search, so you don't need the sidebar on a phone.
+  - The Network+ "Load Module 1-11 Notes" button shows only on the Network+ track.
+  - Note action buttons sit side by side on phones.
+  - Flashcards say that tapping the card flips it, and point to Due for Review and the Acronyms deck.
+  - The Dashboard empty state offers Exam Mode and Quiz buttons.
+  - `tests/ux.test.js` now has 20 checks.
+
 ### Notes
 - Practice scores are not an official CompTIA prediction. CompTIA's scaled scoring is proprietary.
 - Third-party practice exams (for example, Professor Messer's) are kept out of this app on purpose, so they stay independent readiness checks.
